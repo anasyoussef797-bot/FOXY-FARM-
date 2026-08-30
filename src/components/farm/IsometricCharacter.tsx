@@ -48,20 +48,28 @@ export const IsometricCharacter: React.FC<IsometricCharacterProps> = ({
 
         {/* Character Avatar Container with 3D Image */}
         <div
-          className="relative w-14 h-14 rounded-2xl bg-white/95 border-2 shadow-lg flex items-center justify-center overflow-hidden transform group-hover:scale-115 transition-transform"
+          className="relative w-14 h-14 rounded-2xl bg-white border-2 shadow-lg flex items-center justify-center overflow-hidden transform group-hover:scale-115 transition-transform"
           style={{ borderColor: profile.color }}
         >
-          <img
-            src={profile.image}
-            alt={profile.name}
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover rounded-xl"
-            onError={(e) => {
-              // fallback if image loading fails
-              (e.currentTarget as HTMLElement).style.display = 'none';
-            }}
-          />
-          <span className="absolute bottom-0.5 right-0.5 text-xs drop-shadow">
+          {profile.image ? (
+            <img
+              src={profile.image}
+              alt={profile.name}
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover rounded-xl"
+              onError={(e) => {
+                // fallback if image loading fails
+                (e.currentTarget as HTMLElement).style.display = 'none';
+              }}
+            />
+          ) : null}
+          <div
+            className="w-full h-full flex items-center justify-center text-2xl"
+            style={{ backgroundColor: `${profile.color}15` }}
+          >
+            {profile.avatarEmoji}
+          </div>
+          <span className="absolute bottom-0.5 right-0.5 text-xs drop-shadow bg-white/80 rounded-full px-1">
             {profile.avatarEmoji}
           </span>
         </div>

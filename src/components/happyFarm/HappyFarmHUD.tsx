@@ -333,12 +333,18 @@ export const HappyFarmHUD: React.FC<HappyFarmHUDProps> = ({
               }}
               className="flex items-center gap-1.5 p-1 rounded-2xl bg-[#8D6E63] hover:bg-[#795548] border-2 border-[#FFE082] text-white cursor-pointer shadow-xs transition-transform hover:scale-105"
             >
-              <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
-                referrerPolicy="no-referrer"
-                className="w-7 h-7 rounded-xl object-cover border border-white"
-              />
+              {currentUser.avatar && (currentUser.avatar.startsWith('http') || currentUser.avatar.startsWith('/') || currentUser.avatar.startsWith('data:')) ? (
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  referrerPolicy="no-referrer"
+                  className="w-7 h-7 rounded-xl object-cover border border-white"
+                />
+              ) : (
+                <span className="w-7 h-7 rounded-xl bg-amber-100/90 border border-white flex items-center justify-center text-sm">
+                  {currentUser.avatar || '👦🏽'}
+                </span>
+              )}
               <span className="text-xs font-black hidden sm:inline text-[#FFF9C4] px-1 truncate max-w-[80px]">
                 {currentUser.name.split(' ')[0]}
               </span>
@@ -354,6 +360,7 @@ export const HappyFarmHUD: React.FC<HappyFarmHUDProps> = ({
                 <div className="space-y-1.5 max-h-60 overflow-y-auto">
                   {allUsers.map((u) => {
                     const isSelected = u.id === currentUser.id;
+                    const isImg = u.avatar && (u.avatar.startsWith('http') || u.avatar.startsWith('/') || u.avatar.startsWith('data:'));
                     return (
                       <div
                         key={u.id}
@@ -368,12 +375,18 @@ export const HappyFarmHUD: React.FC<HappyFarmHUDProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <img
-                            src={u.avatar}
-                            alt={u.name}
-                            referrerPolicy="no-referrer"
-                            className="w-8 h-8 rounded-xl object-cover border border-[#81C784]"
-                          />
+                          {isImg ? (
+                            <img
+                              src={u.avatar}
+                              alt={u.name}
+                              referrerPolicy="no-referrer"
+                              className="w-8 h-8 rounded-xl object-cover border border-[#81C784]"
+                            />
+                          ) : (
+                            <span className="w-8 h-8 rounded-xl bg-amber-100 border border-[#81C784] flex items-center justify-center text-lg">
+                              {u.avatar || '👦🏽'}
+                            </span>
+                          )}
                           <div>
                             <p className="text-xs font-black text-slate-800">{u.name}</p>
                             <span className="text-[10px] font-bold text-amber-900 bg-[#FFF9C4] px-1.5 py-0.2 rounded-md border border-[#FDD835]">

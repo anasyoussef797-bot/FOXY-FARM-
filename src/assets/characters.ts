@@ -1,14 +1,24 @@
+import foxyImg from './images/character_foxy_1787680530182.jpg';
+import adamImg from './images/character_adam_1787680542718.jpg';
+import taliaImg from './images/character_talia_1787680555000.jpg';
+import sparkImg from './images/character_spark_1787680567230.jpg';
+import heroImg from './images/foxy_farm_characters_group_1787682518054.jpg';
+import foxyPoses from './images/foxy_poses_sheet_1787682443483.jpg';
+import adamPoses from './images/adam_poses_sheet_1787682461121.jpg';
+import taliaPoses from './images/talia_poses_sheet_1787682482011.jpg';
+import sparkPoses from './images/spark_poses_sheet_1787682498943.jpg';
+
 export const CHARACTER_IMAGES = {
-  FOXY: "/src/assets/images/character_foxy_1787680530182.jpg",
-  ADAM: "/src/assets/images/character_adam_1787680542718.jpg",
-  TALIA: "/src/assets/images/character_talia_1787680555000.jpg",
-  SPARK: "/src/assets/images/character_spark_1787680567230.jpg",
-  HERO: "/src/assets/images/foxy_farm_characters_group_1787682518054.jpg",
+  FOXY: foxyImg,
+  ADAM: adamImg,
+  TALIA: taliaImg,
+  SPARK: sparkImg,
+  HERO: heroImg,
   POSES: {
-    FOXY: "/src/assets/images/foxy_poses_sheet_1787682443483.jpg",
-    ADAM: "/src/assets/images/adam_poses_sheet_1787682461121.jpg",
-    TALIA: "/src/assets/images/talia_poses_sheet_1787682482011.jpg",
-    SPARK: "/src/assets/images/spark_poses_sheet_1787682498943.jpg",
+    FOXY: foxyPoses,
+    ADAM: adamPoses,
+    TALIA: taliaPoses,
+    SPARK: sparkPoses,
   },
 };
 
