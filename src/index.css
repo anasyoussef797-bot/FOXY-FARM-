@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #689F38;
+    color: #1B5E20;
+    overflow-x: hidden;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sway {
+  0%, 100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(253, 216, 53, 0.6));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(253, 216, 53, 0.95));
+    transform: scale(1.04);
+  }
+}
+
+@keyframes harvestBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes smokePuff {
+  0% {
+    opacity: 0.8;
+    transform: translateY(0px) scale(0.6);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translateY(-15px) translateX(6px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px) translateX(12px) scale(1.4);
+  }
+}
+
+@keyframes flyUpFade {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-40px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px) scale(0.9);
+  }
+}
+
+@keyframes cloudDrift {
+  0% {
+    transform: translateX(-10%);
+  }
+  100% {
+    transform: translateX(110%);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: floatSlow 4s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spinSlow 12s linear infinite;
+}
+
+.animate-spin-windmill {
+  animation: spinSlow 6s linear infinite;
+}
+
+.animate-sway {
+  animation: sway 2.5s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 1.8s ease-in-out infinite;
+}
+
+.animate-harvest-bounce {
+  animation: harvestBounce 1.2s ease-in-out infinite;
+}
+
+.animate-smoke {
+  animation: smokePuff 2.5s ease-out infinite;
+}
+
+.animate-fly-up {
+  animation: flyUpFade 1.6s ease-out forwards;
+}
+
+.animate-cloud-drift-1 {
+  animation: cloudDrift 90s linear infinite;
+}
+
+.animate-cloud-drift-2 {
+  animation: cloudDrift 130s linear infinite 20s;
+}
+
+/* Isometric custom styling */
+.iso-container {
+  transform-style: preserve-3d;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(46, 125, 50, 0.6);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(46, 125, 50, 0.9);
+}
