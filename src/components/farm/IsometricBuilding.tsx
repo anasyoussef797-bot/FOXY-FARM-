@@ -4,6 +4,7 @@ import { BUILDINGS_CONFIG } from '../../data/gameConfigs';
 interface IsometricBuildingProps {
   buildingId: string;
   isSelected?: boolean;
+  isMoving?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   isArabic?: boolean;
 }
@@ -11,6 +12,7 @@ interface IsometricBuildingProps {
 export const IsometricBuilding: React.FC<IsometricBuildingProps> = ({
   buildingId,
   isSelected,
+  isMoving,
   onClick,
   isArabic = true,
 }) => {
@@ -21,7 +23,11 @@ export const IsometricBuilding: React.FC<IsometricBuildingProps> = ({
     <div
       onClick={onClick}
       className={`absolute select-none pointer-events-none flex flex-col items-center justify-center transition-transform duration-200 z-20 ${
-        isSelected ? 'scale-105 filter drop-shadow-[0_0_15px_#FDD835]' : ''
+        isMoving
+          ? '-translate-y-4 scale-110 filter drop-shadow-[0_12px_24px_rgba(253,216,53,0.9)] animate-pulse'
+          : isSelected
+          ? 'scale-105 filter drop-shadow-[0_0_15px_#FDD835]'
+          : ''
       }`}
       style={{
         width: '130px',
@@ -31,7 +37,7 @@ export const IsometricBuilding: React.FC<IsometricBuildingProps> = ({
       }}
     >
       {/* Building Ground Shadow */}
-      <div className="absolute bottom-2 w-28 h-12 bg-black/40 rounded-full blur-xs pointer-events-none" />
+      <div className={`absolute bottom-2 w-28 h-12 bg-black/40 rounded-full blur-xs pointer-events-none ${isMoving ? 'scale-75 opacity-40' : ''}`} />
 
       {/* ========================================================================= */}
       {/* 1. COZY FARMHOUSE (بيت المزرعة الخشبي الريفي الأنيق مع مدخنة وأزهار) */}

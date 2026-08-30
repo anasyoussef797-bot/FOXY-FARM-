@@ -354,7 +354,11 @@ export const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({
             </p>
             <button
               onClick={() => {
-                soundEngine.playFeed();
+                if (tile.animalId) {
+                  soundEngine.playAnimalSound(tile.animalId);
+                } else {
+                  soundEngine.playFeed();
+                }
                 onFeedAnimal(tile.id);
                 onClose();
               }}

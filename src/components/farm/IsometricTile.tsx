@@ -6,6 +6,8 @@ interface IsometricTileProps {
   tile: FarmTile;
   isSelected: boolean;
   isHovered: boolean;
+  isMoveSource?: boolean;
+  isMoveTargetValid?: boolean | null;
   onClick: (tile: FarmTile, e: React.MouseEvent) => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
@@ -15,6 +17,8 @@ export const IsometricTile: React.FC<IsometricTileProps> = ({
   tile,
   isSelected,
   isHovered,
+  isMoveSource = false,
+  isMoveTargetValid = null,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -306,8 +310,40 @@ export const IsometricTile: React.FC<IsometricTileProps> = ({
           </g>
         )}
 
-        {/* Selection & Hover Glowing Outlines */}
-        {(isSelected || isHovered) && (
+        {/* Movement Source Outline (item currently picked up) */}
+        {isMoveSource && (
+          <polygon
+            points="55,0 110,27.5 55,55 0,27.5"
+            fill="rgba(253, 216, 53, 0.4)"
+            stroke="#FDD835"
+            strokeWidth="3.5"
+            strokeDasharray="6 3"
+            className="animate-pulse filter drop-shadow-[0_0_12px_#FDD835]"
+          />
+        )}
+
+        {/* Move Target Hover (Green for valid empty spot, Red for occupied/locked) */}
+        {isMoveTargetValid === true && (
+          <polygon
+            points="55,0 110,27.5 55,55 0,27.5"
+            fill="rgba(34, 197, 94, 0.45)"
+            stroke="#22C55E"
+            strokeWidth="3.5"
+            className="animate-pulse filter drop-shadow-[0_0_12px_#22C55E]"
+          />
+        )}
+        {isMoveTargetValid === false && (
+          <polygon
+            points="55,0 110,27.5 55,55 0,27.5"
+            fill="rgba(239, 68, 68, 0.35)"
+            stroke="#EF4444"
+            strokeWidth="3"
+            className="filter drop-shadow-[0_0_8px_#EF4444]"
+          />
+        )}
+
+        {/* Normal Selection & Hover Glowing Outlines (when not in move mode) */}
+        {!isMoveSource && isMoveTargetValid === null && (isSelected || isHovered) && (
           <polygon
             points="55,0 110,27.5 55,55 0,27.5"
             fill={isSelected ? 'rgba(253, 216, 53, 0.35)' : 'rgba(255, 255, 255, 0.22)'}
@@ -317,6 +353,18 @@ export const IsometricTile: React.FC<IsometricTileProps> = ({
           />
         )}
       </svg>
+
+      {/* Floating Indicator for Move Placement */}
+      {isMoveTargetValid === true && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center -translate-y-2 pointer-events-none">
+          <div className="w-7 h-7 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-white shadow-lg animate-bounce">
+            <span className="text-xs font-black">✓</span>
+          </div>
+          <span className="text-[9px] font-black bg-emerald-800 text-white px-2 py-0.5 rounded-full mt-0.5 border border-emerald-300 shadow-xs">
+            ضع هنا
+          </span>
+        </div>
+      )}
 
       {/* Floating Expansion Indicator Badge on Locked Land */}
       {isLocked && (

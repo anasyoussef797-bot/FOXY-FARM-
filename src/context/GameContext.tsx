@@ -417,15 +417,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
 
       if (!seedItem) {
-        const isAr = getIsArabic();
-        const cropConf = CROPS_CONFIG[cropId];
-        triggerDialog(
-          'ADAM',
-          isAr
-            ? `لا توجد بذور ${cropConf?.name || 'محاصيل'} كافية في مخزنك! تفضل بزيارة المتجر لشراء أكياس البذور باستخدام العملات المعدنية.`
-            : `You do not have any ${cropConf?.name || 'seeds'} in your inventory! Visit the Shop to purchase seed packets with your coins.`,
-          isAr ? 'بحاجة إلى بذور! 🌾' : 'Seeds Needed!'
-        );
         return false;
       }
 
@@ -740,14 +731,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Check if target tile is occupied by animal or building
       if (toTile.animalId || toTile.buildingId) {
-        const isAr = getIsArabic();
-        triggerDialog(
-          'FOXY',
-          isAr
-            ? 'هذه الرقعة مشغولة بالفعل بحيوان أو مبنى آخر! اختر رقعة خالية لنقل العنصر إليها.'
-            : 'This plot is already occupied! Please select an empty plot to relocate.',
-          isAr ? 'الرقعة مشغولة ⚠️' : 'Plot Occupied ⚠️'
-        );
         return false;
       }
 
@@ -861,6 +844,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updatedProfile = { ...studentProfile, coins: newCoins, inventory: newInv };
         setStudentProfile(updatedProfile);
         StorageService.updateStudentProfile(updatedProfile);
+        setSelectedSeedId(itemId);
+        setSelectedTool('plant');
         return true;
       }
 

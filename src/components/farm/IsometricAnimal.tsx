@@ -1,23 +1,142 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FarmTile } from '../../types';
 import { ANIMALS_CONFIG } from '../../data/gameConfigs';
-import { Sparkles, Heart } from 'lucide-react';
+import { soundEngine } from '../../services/soundEngine';
+import { Sparkles, Heart, Utensils, Award, TrendingUp, Sparkle, Volume2 } from 'lucide-react';
 
 interface IsometricAnimalProps {
   tile: FarmTile;
   isSelected?: boolean;
+  isMoving?: boolean;
   onClick: (tile: FarmTile, e: React.MouseEvent) => void;
+  onCollectProduce?: (tile: FarmTile, e: React.MouseEvent) => void;
   isArabic?: boolean;
 }
+
+// Educational and gameplay animal details (ماذا يأكل، ماذا ينتج، في أي شيء يستغل إنتاجه)
+const ANIMAL_KNOWLEDGE: Record<
+  string,
+  {
+    nameAr: string;
+    soundNameAr: string;
+    dietAr: string;
+    dietEn: string;
+    dietIcon: string;
+    produceAr: string;
+    produceEn: string;
+    produceIcon: string;
+    usageAr: string;
+    usageEn: string;
+  }
+> = {
+  cow: {
+    nameAr: 'البقرة الحلوب (Daisy Cow)',
+    soundNameAr: 'خوار طبيعي (Moo)',
+    dietAr: 'البرسيم الأخضر، الأعشاب، والقش الطازج',
+    dietEn: 'Green clover, fresh grass, and hay',
+    dietIcon: '🌿',
+    produceAr: 'حليب طبيعي طازج وكريمي',
+    produceEn: 'Pure organic creamy milk',
+    produceIcon: '🥛',
+    usageAr: 'صناعة الجبن والزبدة، وإطعام المزرعة، وبيعه بسوق القرية بأرباح عالية!',
+    usageEn: 'Crafting cheese, butter, and selling at high market profit!',
+  },
+  chicken: {
+    nameAr: 'الدجاجة النشيطة (Clucky Hen)',
+    soundNameAr: 'صياح وقوقأة (Cluck)',
+    dietAr: 'حبوب القمح، الذرة الصفراء، والبذور المغذية',
+    dietEn: 'Wheat grains, golden corn, and seeds',
+    dietIcon: '🌾',
+    produceAr: 'بيض طازج غني بالبروتين والمغنيسيوم',
+    produceEn: 'Farm-fresh nutritious eggs',
+    produceIcon: '🥚',
+    usageAr: 'خبز الفطائر والكعك في المخبز، وصنع أشهى الوجبات، وتلبية طلبات السوق!',
+    usageEn: 'Baking cakes & pies in the bakery and fulfilling daily quest orders!',
+  },
+  sheep: {
+    nameAr: 'الخروف الصوفي (Woolly Sheep)',
+    soundNameAr: 'ثغاء لطيف (Baa)',
+    dietAr: 'الأعشاب الجبلية، الحشائش الخضراء، والتبن',
+    dietEn: 'Mountain grasses, meadow fodder, and hay',
+    dietIcon: '🌱',
+    produceAr: 'صوف أبيض فاخر وناعم جداً',
+    produceEn: 'Fluffy warm white wool',
+    produceIcon: '🧶',
+    usageAr: 'غزل الملابس الشتوية والحياكة اليدوية، والبيع للتجار لكسب الذهب!',
+    usageEn: 'Spinning winter garments, textile crafting, and high-value export orders!',
+  },
+  horse: {
+    nameAr: 'الحصان العربي الأصيل (Arabian Steed)',
+    soundNameAr: 'صهيل عربي أصيل (Neigh)',
+    dietAr: 'الشوفان النقي، الجزر المقرمش، والتفاح الطازج',
+    dietEn: 'Pure oats, crunchy carrots, and crisp apples',
+    dietIcon: '🥕',
+    produceAr: 'حذوة الحصان الذهبية للبركة والسرعة',
+    produceEn: 'Lucky Golden Horseshoe Charm',
+    produceIcon: '⭐',
+    usageAr: 'تسريع حركة المزرعة، مضاعفة حظ الإنتاج النادر، ومكافآت الذهب الكبرى!',
+    usageEn: 'Speeding up farm tasks, boosting lucky double harvests, and high rewards!',
+  },
+  duck: {
+    nameAr: 'بطة البحيرة اللطيفة (River Duck)',
+    soundNameAr: 'بطبطة مرحة (Quack)',
+    dietAr: 'نباتات البرك المائية، الحبوب، والديدان الصغيرة',
+    dietEn: 'Pond greens, water lentils, and seeds',
+    dietIcon: '💧',
+    produceAr: 'ريشة ذهبية ملكية فاخرة',
+    produceEn: 'Golden Quill Writing Feather',
+    produceIcon: '🪶',
+    usageAr: 'كتابة وحل الواجبات المدرسية بامتياز، وتزيين قبعات الشخصيات، والبيع بالمتجر!',
+    usageEn: 'Crafting luxury homework quills, designing cosmetics, and trading!',
+  },
+  rabbit: {
+    nameAr: 'الأرنب السريع (Fluffy Bunny)',
+    soundNameAr: 'زقزقة وقفزات لطيفة (Hop & Squeak)',
+    dietAr: 'الجزر الطازج المقرمش، أوراق الخس، والبرسيم',
+    dietEn: 'Crispy carrots, leafy lettuce, and clover',
+    dietIcon: '🥕',
+    produceAr: 'نبتة الحظ الرباعية النادرة',
+    produceEn: 'Lucky Four-Leaf Clover',
+    produceIcon: '🍀',
+    usageAr: 'مضاعفة نقاط الخبرة XP، فتح الصناديق السحرية، وتسريع نمو المحاصيل!',
+    usageEn: 'Doubling XP rewards, opening lucky chests, and accelerating crop growth!',
+  },
+};
 
 export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
   tile,
   isSelected,
+  isMoving,
   onClick,
+  onCollectProduce,
   isArabic = true,
 }) => {
   const [secondsRemaining, setSecondsRemaining] = useState<number>(0);
+  const [isHovered, setIsHovered] = useState<boolean>(false);
+  const soundCooldownRef = useRef<number>(0);
   const animal = tile.animalId ? ANIMALS_CONFIG[tile.animalId] : null;
+  const knowledge = tile.animalId ? ANIMAL_KNOWLEDGE[tile.animalId] : null;
+
+  const handleAnimalClick = (e: React.MouseEvent) => {
+    if (tile.animalId) {
+      soundEngine.playAnimalSound(tile.animalId);
+    }
+    onClick(tile, e);
+  };
+
+  const handleAnimalMouseEnter = () => {
+    setIsHovered(true);
+    // Play real animal sound immediately on hover without clicking (1.2s debounce protection)
+    const now = Date.now();
+    if (tile.animalId && now - soundCooldownRef.current > 1200) {
+      soundCooldownRef.current = now;
+      soundEngine.playAnimalSound(tile.animalId);
+    }
+  };
+
+  const handleAnimalMouseLeave = () => {
+    setIsHovered(false);
+  };
 
   useEffect(() => {
     if (!tile.animalId || !tile.animalFedAt || !animal) {
@@ -43,25 +162,36 @@ export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
 
   return (
     <div
-      className={`absolute select-none pointer-events-none flex flex-col items-center justify-center transition-all duration-300 z-20 ${
-        isSelected ? 'scale-110 filter drop-shadow-[0_0_16px_#FFD54F]' : ''
+      onMouseEnter={handleAnimalMouseEnter}
+      onMouseLeave={handleAnimalMouseLeave}
+      className={`absolute select-none flex flex-col items-center justify-center transition-all duration-200 ${
+        isHovered ? 'z-50' : 'z-20'
+      } ${
+        isMoving
+          ? '-translate-y-4 scale-110 filter drop-shadow-[0_12px_24px_rgba(253,216,53,0.9)] animate-pulse'
+          : isSelected
+          ? 'scale-105 filter drop-shadow-[0_0_16px_#FFD54F]'
+          : isHovered
+          ? 'scale-105 filter drop-shadow-[0_0_16px_rgba(255,255,255,0.9)]'
+          : ''
       }`}
       style={{
         width: '124px',
         height: '110px',
         top: '-56px',
         left: '-7px',
+        pointerEvents: 'auto',
       }}
     >
       {/* 3D Realistic Ground Ambient Occlusion & Cast Shadow */}
-      <div className="absolute bottom-3 w-22 h-8 bg-black/35 rounded-[100%] blur-[2px] pointer-events-none transform rotate-[-4deg]" />
+      <div className={`absolute bottom-3 w-22 h-8 bg-black/35 rounded-[100%] blur-[2px] pointer-events-none transform rotate-[-4deg] ${isMoving ? 'scale-75 opacity-40' : ''}`} />
 
       {/* ========================================================================= */}
       {/* 1. SCULPTED 3D ISOMETRIC HOLSTEIN DAIRY COW (البقرة الهولندية المجسمة 3D) */}
       {/* ========================================================================= */}
       {tile.animalId === 'cow' && (
         <div
-          onClick={(e) => onClick(tile, e)}
+          onClick={handleAnimalClick}
           className="relative flex flex-col items-center pointer-events-auto cursor-pointer hover:scale-105 transition-transform"
         >
           <svg
@@ -183,7 +313,7 @@ export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
       {/* ========================================================================= */}
       {tile.animalId === 'chicken' && (
         <div
-          onClick={(e) => onClick(tile, e)}
+          onClick={handleAnimalClick}
           className="relative flex flex-col items-center pointer-events-auto cursor-pointer hover:scale-105 transition-transform"
         >
           <svg
@@ -257,7 +387,7 @@ export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
       {/* ========================================================================= */}
       {tile.animalId === 'sheep' && (
         <div
-          onClick={(e) => onClick(tile, e)}
+          onClick={handleAnimalClick}
           className="relative flex flex-col items-center pointer-events-auto cursor-pointer hover:scale-105 transition-transform"
         >
           <svg
@@ -333,7 +463,7 @@ export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
       {/* ========================================================================= */}
       {tile.animalId === 'horse' && (
         <div
-          onClick={(e) => onClick(tile, e)}
+          onClick={handleAnimalClick}
           className="relative flex flex-col items-center pointer-events-auto cursor-pointer hover:scale-105 transition-transform"
         >
           <svg
@@ -417,7 +547,7 @@ export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
       {/* ========================================================================= */}
       {tile.animalId === 'duck' && (
         <div
-          onClick={(e) => onClick(tile, e)}
+          onClick={handleAnimalClick}
           className="relative flex flex-col items-center pointer-events-auto cursor-pointer hover:scale-105 transition-transform"
         >
           <svg
@@ -473,7 +603,7 @@ export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
       {/* ========================================================================= */}
       {tile.animalId === 'rabbit' && (
         <div
-          onClick={(e) => onClick(tile, e)}
+          onClick={handleAnimalClick}
           className="relative flex flex-col items-center pointer-events-auto cursor-pointer hover:scale-105 transition-transform"
         >
           <svg
@@ -535,7 +665,7 @@ export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
         tile.animalId !== 'duck' &&
         tile.animalId !== 'rabbit' && (
           <div
-            onClick={(e) => onClick(tile, e)}
+            onClick={handleAnimalClick}
             className="relative flex flex-col items-center animate-sway pointer-events-auto cursor-pointer"
           >
             <div className="text-4xl drop-shadow-md transform hover:scale-110 transition-transform">
@@ -554,8 +684,15 @@ export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
       {/* Produce Ready Floating Action Badge (e.g. 🥛 Milk, 🥚 Golden Egg, 🧶 Wool) */}
       {isProduceReady && (
         <button
-          onClick={(e) => onClick(tile, e)}
-          className="absolute -top-6 bg-linear-to-r from-[#FFD600] via-[#FFF59D] to-[#FBC02D] text-amber-950 font-black text-[11px] px-3 py-1 rounded-full border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center gap-1.5 animate-bounce ring-2 ring-amber-400/50 pointer-events-auto cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onCollectProduce) {
+              onCollectProduce(tile, e);
+            } else {
+              onClick(tile, e);
+            }
+          }}
+          className="absolute -top-6 bg-linear-to-r from-[#FFD600] via-[#FFF59D] to-[#FBC02D] text-amber-950 font-black text-[11px] px-3 py-1 rounded-full border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.35)] flex items-center gap-1.5 animate-bounce ring-2 ring-amber-400/50 pointer-events-auto cursor-pointer hover:scale-105 active:scale-95 transition-transform z-30"
         >
           <span className="text-sm">{animal.produceItem.icon}</span>
           <span>{isArabic ? 'جاهز للجمع!' : 'Ready!'}</span>
@@ -568,6 +705,97 @@ export const IsometricAnimal: React.FC<IsometricAnimalProps> = ({
         <div className="absolute -bottom-1 bg-slate-950/85 backdrop-blur-xs text-white text-[9px] font-black px-2.5 py-0.5 rounded-full border border-white/30 shadow-md flex items-center gap-1 pointer-events-none">
           <span className="text-amber-300">⏳</span>
           <span>{secondsRemaining}s</span>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 7. Hover Knowledge Card (تذكرة تفاعلية تظهر عند التحويم وتختفي عند الابتعاد) */}
+      {/* ========================================================================= */}
+      {isHovered && knowledge && !isMoving && (
+        <div
+          className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-72 pointer-events-none z-[999999] animate-in fade-in zoom-in-95 duration-150"
+          style={{ filter: 'drop-shadow(0 12px 28px rgba(0, 0, 0, 0.55))' }}
+        >
+          {/* Card Container */}
+          <div className="bg-slate-900/95 border-2 border-[#FFD54F] text-white rounded-2xl p-3 shadow-2xl backdrop-blur-md relative overflow-hidden">
+            {/* Ambient Gold Accent Light */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Header: Animal Name & Sound */}
+            <div className="flex items-center justify-between border-b border-white/15 pb-2 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl drop-shadow-sm">{animal.icon}</span>
+                <div className="flex flex-col text-right">
+                  <h4 className="text-xs font-black text-[#FFE082] leading-tight">
+                    {isArabic ? knowledge.nameAr : animal.name}
+                  </h4>
+                  <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                    <Volume2 className="w-3 h-3 animate-pulse" />
+                    <span>{isArabic ? knowledge.soundNameAr : 'Natural Voice'}</span>
+                  </span>
+                </div>
+              </div>
+              <div className="px-2 py-0.5 bg-amber-500/20 border border-amber-400/40 rounded-full text-[9px] font-black text-amber-300 flex items-center gap-1">
+                <span>Lv.{animal.unlockLevel}</span>
+              </div>
+            </div>
+
+            {/* Content 1: What it eats (ماذا يأكل) */}
+            <div className="space-y-1.5 text-right text-[11px]">
+              <div className="bg-white/5 rounded-xl p-2 border border-white/10 flex items-start gap-2">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0 text-sm mt-0.5">
+                  {knowledge.dietIcon}
+                </div>
+                <div className="flex-1">
+                  <div className="text-[10px] font-black text-emerald-300 flex items-center justify-between">
+                    <span>{isArabic ? '🌾 ماذا يأكل؟' : '🌾 Diet / Food:'}</span>
+                    <span className="text-[9px] text-emerald-400 font-normal">
+                      {isArabic ? `⚡ ${animal.feedEnergyCost} طاقة` : `⚡ ${animal.feedEnergyCost} Energy`}
+                    </span>
+                  </div>
+                  <p className="text-slate-200 text-[10.5px] font-medium leading-snug mt-0.5">
+                    {isArabic ? knowledge.dietAr : knowledge.dietEn}
+                  </p>
+                </div>
+              </div>
+
+              {/* Content 2: What it produces (ماذا ينتج) */}
+              <div className="bg-white/5 rounded-xl p-2 border border-white/10 flex items-start gap-2">
+                <div className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-400/30 flex items-center justify-center shrink-0 text-sm mt-0.5">
+                  {knowledge.produceIcon}
+                </div>
+                <div className="flex-1">
+                  <div className="text-[10px] font-black text-amber-300 flex items-center justify-between">
+                    <span>{isArabic ? '✨ ماذا ينتج؟' : '✨ Yield / Produce:'}</span>
+                    <span className="text-[9px] text-amber-300 font-bold">
+                      {isArabic ? `+${animal.produceItem.sellPrice} 🪙` : `+${animal.produceItem.sellPrice} Coins`}
+                    </span>
+                  </div>
+                  <p className="text-slate-200 text-[10.5px] font-medium leading-snug mt-0.5">
+                    {isArabic ? knowledge.produceAr : knowledge.produceEn}
+                  </p>
+                </div>
+              </div>
+
+              {/* Content 3: How to utilize production (في أي شيء يمكن استغلال إنتاجه) */}
+              <div className="bg-linear-to-br from-indigo-950/60 to-purple-950/60 rounded-xl p-2 border border-purple-400/30 flex items-start gap-2">
+                <div className="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-400/30 flex items-center justify-center shrink-0 text-sm mt-0.5">
+                  💡
+                </div>
+                <div className="flex-1">
+                  <span className="text-[10px] font-black text-purple-300 block">
+                    {isArabic ? '🎯 مجالات استغلال الإنتاج والفائدة:' : '🎯 Utilization & Benefits:'}
+                  </span>
+                  <p className="text-slate-200 text-[10px] font-medium leading-snug mt-0.5">
+                    {isArabic ? knowledge.usageAr : knowledge.usageEn}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card Bottom Arrow Indicator */}
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 border-r-2 border-b-2 border-[#FFD54F] transform rotate-45" />
+          </div>
         </div>
       )}
     </div>

@@ -232,7 +232,11 @@ class SoundEngine {
     });
   }
 
-  // Happy Farm Cow Moo (صوت خوار البقرة الشهير)
+  // ==========================================
+  // Animal Sound Synthesizers (أصوات الحيوانات التفاعلية)
+  // ==========================================
+
+  // 1. Cow Moo (خوار البقرة)
   public playCowMoo() {
     if (this.isMuted) return;
     this.initContext();
@@ -245,26 +249,244 @@ class SoundEngine {
 
     osc.type = 'sawtooth';
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(380, now);
-    filter.frequency.exponentialRampToValueAtTime(260, now + 0.4);
+    filter.frequency.setValueAtTime(450, now);
+    filter.frequency.exponentialRampToValueAtTime(280, now + 0.6);
 
-    osc.frequency.setValueAtTime(145, now);
-    osc.frequency.linearRampToValueAtTime(160, now + 0.15);
-    osc.frequency.exponentialRampToValueAtTime(115, now + 0.55);
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.linearRampToValueAtTime(165, now + 0.2);
+    osc.frequency.exponentialRampToValueAtTime(110, now + 0.7);
 
     gain.gain.setValueAtTime(0.01, now);
-    gain.gain.linearRampToValueAtTime(0.18, now + 0.1);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    gain.gain.linearRampToValueAtTime(0.22, now + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
 
     osc.connect(filter);
     filter.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(now);
+    osc.stop(now + 0.7);
+  }
+
+  // 2. Chicken Cluck & Cackle (قوقأة الدجاجة وصياحها)
+  public playChickenCluck() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    // Series of 3 rhythmic clucks: bok... bok... bawk!
+    const clucks = [
+      { f1: 520, f2: 380, dur: 0.08, delay: 0, vol: 0.18 },
+      { f1: 580, f2: 400, dur: 0.09, delay: 0.1, vol: 0.2 },
+      { f1: 720, f2: 440, dur: 0.18, delay: 0.22, vol: 0.24 },
+    ];
+
+    clucks.forEach((c) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      osc.type = 'triangle';
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(900, now + c.delay);
+      filter.Q.setValueAtTime(3, now + c.delay);
+
+      osc.frequency.setValueAtTime(c.f1, now + c.delay);
+      osc.frequency.exponentialRampToValueAtTime(c.f2, now + c.delay + c.dur);
+
+      gain.gain.setValueAtTime(0.01, now + c.delay);
+      gain.gain.linearRampToValueAtTime(c.vol, now + c.delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + c.delay + c.dur);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + c.delay);
+      osc.stop(now + c.delay + c.dur);
+    });
+  }
+
+  // 3. Sheep Baa / Bleat (ثغاء الخروف الصوفي مااااء)
+  public playSheepBaa() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const vibrato = this.ctx.createOscillator();
+    const vibratoGain = this.ctx.createGain();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    // Vibrato for natural sheep throat wobble (تردد حلقي للخروف)
+    vibrato.frequency.setValueAtTime(14, now);
+    vibratoGain.gain.setValueAtTime(18, now);
+    vibrato.connect(osc.frequency);
+
+    osc.type = 'sawtooth';
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(750, now);
+    filter.Q.setValueAtTime(2.5, now);
+
+    osc.frequency.setValueAtTime(270, now);
+    osc.frequency.linearRampToValueAtTime(320, now + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(230, now + 0.55);
+
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    vibrato.start(now);
+    osc.start(now);
+    vibrato.stop(now + 0.55);
     osc.stop(now + 0.55);
   }
 
-  // Happy Farm Sheep Baa / Animal feeding (صوت الأغنام / الحيوانات)
+  // 4. Arabian Horse Whinny / Neigh (صهيل الحصان العربي)
+  public playHorseNeigh() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    // Rapid whinny trill + descending snort
+    const osc = this.ctx.createOscillator();
+    const vibrato = this.ctx.createOscillator();
+    const vibratoGain = this.ctx.createGain();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    vibrato.frequency.setValueAtTime(22, now);
+    vibratoGain.gain.setValueAtTime(45, now);
+    vibrato.connect(osc.frequency);
+
+    osc.type = 'sawtooth';
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1800, now);
+
+    osc.frequency.setValueAtTime(650, now);
+    osc.frequency.exponentialRampToValueAtTime(980, now + 0.18);
+    osc.frequency.exponentialRampToValueAtTime(420, now + 0.65);
+
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.18, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    vibrato.start(now);
+    osc.start(now);
+    vibrato.stop(now + 0.65);
+    osc.stop(now + 0.65);
+
+    // Subtle snort noise at the end
+    setTimeout(() => {
+      this.playNoiseBurst(0.12, 0.1, 800);
+    }, 450);
+  }
+
+  // 5. Duck Quack (بطبطة البطة وكواك كواك)
+  public playDuckQuack() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    // Two bouncy quacks
+    [0, 0.16].forEach((delay, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      osc.type = 'sawtooth';
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(680, now + delay);
+      filter.Q.setValueAtTime(4, now + delay);
+
+      const startFreq = idx === 0 ? 460 : 420;
+      osc.frequency.setValueAtTime(startFreq, now + delay);
+      osc.frequency.exponentialRampToValueAtTime(startFreq * 0.65, now + delay + 0.12);
+
+      gain.gain.setValueAtTime(0.01, now + delay);
+      gain.gain.linearRampToValueAtTime(0.2, now + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.13);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + delay);
+      osc.stop(now + delay + 0.13);
+    });
+  }
+
+  // 6. Rabbit Squeak & Hop (صوت الأرنب والقفزات اللطيفة)
+  public playRabbitHop() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    // Cute high chirp + soft thump
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(1400, now + 0.06);
+    osc.frequency.exponentialRampToValueAtTime(1100, now + 0.14);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.15);
+
+    this.playNoiseBurst(0.06, 0.08, 400);
+  }
+
+  // Master Animal Voice Router (تشغيل صوت الحيوان بحسب نوعه)
+  public playAnimalSound(animalId: string) {
+    if (this.isMuted) return;
+    switch (animalId) {
+      case 'cow':
+        this.playCowMoo();
+        break;
+      case 'chicken':
+        this.playChickenCluck();
+        break;
+      case 'sheep':
+        this.playSheepBaa();
+        break;
+      case 'horse':
+        this.playHorseNeigh();
+        break;
+      case 'duck':
+        this.playDuckQuack();
+        break;
+      case 'rabbit':
+        this.playRabbitHop();
+        break;
+      default:
+        this.playFeed();
+        break;
+    }
+  }
+
+  // Happy Farm Feeding Chime (صوت تغذية الحيوان وجمع الإنتاج)
   public playFeed() {
     if (this.isMuted) return;
     this.initContext();

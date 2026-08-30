@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FarmTile, InventoryItem } from '../../types';
+import { ANIMALS_CONFIG, BUILDINGS_CONFIG } from '../../data/gameConfigs';
 import { IsometricTile } from './IsometricTile';
 import { IsometricCrop } from './IsometricCrop';
 import { IsometricBuilding } from './IsometricBuilding';
 import { IsometricAnimal } from './IsometricAnimal';
 import { IsometricCharacter, CharacterType } from './IsometricCharacter';
-import { FloatingActionMenu } from './FloatingActionMenu';
 import { FloatingRewardParticles, RewardParticle } from './FloatingRewardParticles';
 import { ZoomIn, ZoomOut, Compass, Sparkles, Zap, Sprout } from 'lucide-react';
 import { soundEngine } from '../../services/soundEngine';
@@ -136,36 +136,61 @@ export const IsometricFarmWorld: React.FC<IsometricFarmWorldProps> = ({
     setIsDragging(false);
   };
 
+  // Direct animal produce collection & feeding without opening ticket
+  const handleCollectAnimalProduce = (tile: FarmTile, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const clickX = e.clientX || window.innerWidth / 2;
+    const clickY = e.clientY || window.innerHeight / 2;
+
+    if (tile.animalId) {
+      soundEngine.playAnimalSound(tile.animalId);
+      onFeedAnimal(tile.id);
+      const animal = ANIMALS_CONFIG[tile.animalId];
+      const produceName = isArabic ? animal?.produceItem.name || 'الإنتاج' : animal?.produceItem.name || 'Produce';
+      const produceIcon = animal?.produceItem.icon || '🥛';
+      spawnReward(
+        clickX,
+        clickY,
+        isArabic ? `${produceIcon} تم جمع ${produceName} وبدء الإنتاج!` : `${produceIcon} Collected & Fed!`,
+        '+35 XP',
+        '✨'
+      );
+    }
+  };
+
   // Tile Selection & Menu Positioning
   const handleTileSelect = (tile: FarmTile, e: React.MouseEvent) => {
     e.stopPropagation();
-    soundEngine.playClick();
 
     const clickX = e.clientX || window.innerWidth / 2;
     const clickY = e.clientY || window.innerHeight / 2;
 
-    // If currently in Move / Relocate Mode
+    // 1. If currently in Move / Relocate Mode
     if (movingTile) {
       if (movingTile.id === tile.id) {
         // Deselect / cancel move
+        soundEngine.playClick();
         setMovingTile(null);
         return;
       }
       if (tile.isLocked) {
+        soundEngine.playClick();
         return;
       }
       if (tile.animalId || tile.buildingId) {
+        soundEngine.playClick();
         return;
       }
 
       const success = moveFarmItem(movingTile.id, tile.id);
       if (success) {
+        soundEngine.playHarvest();
         spawnReward(
           clickX,
           clickY,
-          isArabic ? 'تم نقل العنصر بنجاح! 🔄' : 'Item Moved! 🔄',
+          isArabic ? '✨ تم وضع العنصر في مكانه الجديد!' : '✨ Item Moved!',
           '+15 XP',
-          '✨'
+          '🎯'
         );
       }
       setMovingTile(null);
@@ -174,8 +199,9 @@ export const IsometricFarmWorld: React.FC<IsometricFarmWorldProps> = ({
       return;
     }
 
-    // If land tile is locked, expand it immediately with joy and rewards!
+    // 2. If land tile is locked, expand it immediately with joy and rewards!
     if (tile.isLocked) {
+      soundEngine.playClick();
       onUnlockLand(tile.id);
       spawnReward(
         clickX,
@@ -187,15 +213,109 @@ export const IsometricFarmWorld: React.FC<IsometricFarmWorldProps> = ({
       return;
     }
 
-    setSelectedTile(tile);
-    setMenuScreenPos({ x: clickX, y: clickY });
+    // 3. If tile has an animal or building, pick it up directly to move it with mouse (NO ticket / menu!)
+    if (tile.animalId || tile.buildingId) {
+      soundEngine.playClick();
+      if (tile.animalId) {
+        soundEngine.playAnimalSound(tile.animalId);
+      }
+      setMovingTile(tile);
+      setSelectedTile(null);
+      setMenuScreenPos(null);
 
-    // Trigger instant harvest if ready
+      const itemName = tile.animalId
+        ? (isArabic ? ANIMALS_CONFIG[tile.animalId]?.name || 'الحيوان' : ANIMALS_CONFIG[tile.animalId]?.name || 'Animal')
+        : (isArabic ? 'المبنى' : 'Building');
+      spawnReward(
+        clickX,
+        clickY,
+        isArabic ? `✋ تم إمساك ${itemName} - انقر على أي رقعة لوضعه!` : `✋ Moving ${itemName} - Click any tile to place!`,
+        undefined,
+        '🔄'
+      );
+      return;
+    }
+
+    soundEngine.playClick();
+
+    // 4. Trigger instant crop harvest if ready
     if (tile.status === 'ready' && tile.cropId) {
       onHarvest(tile.id);
       spawnReward(clickX, clickY, isArabic ? '+25 🪙 ذهب كسب' : '+25 🪙 Coins Earned', '+12 XP', '🌾');
-    } else {
-      onTileClick(tile);
+      return;
+    }
+
+    // 5. Direct Action on Plowed Soil / Tilled Land (NO tickets or menus!)
+    if (tile.type === 'soil') {
+      if (tile.status === 'empty' || !tile.cropId) {
+        // Direct planting
+        const ownedSeeds = inventory.filter((i) => i.type === 'seed' && i.quantity > 0);
+        const activeSeed = selectedSeedId
+          ? ownedSeeds.find((s) => s.referenceId === selectedSeedId) || ownedSeeds[0]
+          : ownedSeeds[0];
+
+        if (activeSeed) {
+          onPlant(tile.id, activeSeed.referenceId);
+          soundEngine.playPlant();
+          spawnReward(
+            clickX,
+            clickY,
+            isArabic ? `🌱 تم زراعة ${activeSeed.name}!` : `🌱 Planted ${activeSeed.name}!`,
+            '+10 XP',
+            '🌾'
+          );
+        } else {
+          soundEngine.playClick();
+          spawnReward(
+            clickX,
+            clickY,
+            isArabic ? '🛒 لا توجد بذور! اشترِ من المتجر أولاً' : '🛒 No seeds! Buy from Shop first',
+            undefined,
+            '🌱'
+          );
+        }
+        return;
+      }
+
+      if (tile.status === 'planted') {
+        // Direct watering
+        onWater(tile.id);
+        soundEngine.playWater();
+        spawnReward(
+          clickX,
+          clickY,
+          isArabic ? '💧 تم سقاية المحصول بالماء!' : '💧 Crop Watered!',
+          '+5 XP',
+          '✨'
+        );
+        return;
+      }
+
+      if (tile.status === 'watered') {
+        soundEngine.playClick();
+        spawnReward(
+          clickX,
+          clickY,
+          isArabic ? '🌱 المحصول ينمو برعاية وسقاية جيدة!' : '🌱 Crop is growing healthy!',
+          undefined,
+          '☀️'
+        );
+        return;
+      }
+    }
+
+    // 6. Direct Action on Grass Meadow (Plow directly into soil)
+    if (tile.type === 'grass') {
+      onPlow(tile.id);
+      soundEngine.playPlant();
+      spawnReward(
+        clickX,
+        clickY,
+        isArabic ? '⛏️ تم حراثة الأرض وتجهيزها للزراعة!' : '⛏️ Soil Plowed!',
+        '+10 XP',
+        '🌱'
+      );
+      return;
     }
   };
 
@@ -313,6 +433,14 @@ export const IsometricFarmWorld: React.FC<IsometricFarmWorldProps> = ({
           const zIndexBase = (tile.x + tile.y) * 10;
           const isSelected = selectedTile?.id === tile.id;
           const isHovered = hoveredTileId === tile.id;
+          const isMoveSource = movingTile?.id === tile.id;
+          const isMoveTargetValid = movingTile
+            ? movingTile.id === tile.id
+              ? null
+              : isHovered
+              ? !tile.isLocked && !tile.animalId && !tile.buildingId
+              : null
+            : null;
 
           return (
             <React.Fragment key={tile.id}>
@@ -329,6 +457,8 @@ export const IsometricFarmWorld: React.FC<IsometricFarmWorldProps> = ({
                   tile={tile}
                   isSelected={isSelected}
                   isHovered={isHovered}
+                  isMoveSource={isMoveSource}
+                  isMoveTargetValid={isMoveTargetValid}
                   onClick={handleTileSelect}
                   onMouseEnter={() => setHoveredTileId(tile.id)}
                   onMouseLeave={() => setHoveredTileId(null)}
@@ -337,7 +467,7 @@ export const IsometricFarmWorld: React.FC<IsometricFarmWorldProps> = ({
                 {/* Rearrange Selection & Target Plot Highlighting */}
                 {movingTile?.id === tile.id && (
                   <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-[999] px-2.5 py-0.5 bg-[#FDD835] text-amber-950 font-black text-[10px] rounded-full border-2 border-white shadow-lg animate-bounce pointer-events-none whitespace-nowrap">
-                    {isArabic ? 'العنصر المختار للنقل 🚜' : 'Moving Item 🚜'}
+                    {isArabic ? 'العنصر المختار للنقل ✋' : 'Moving Item ✋'}
                   </div>
                 )}
                 {movingTile && movingTile.id !== tile.id && !tile.isLocked && !tile.animalId && !tile.buildingId && (
@@ -374,14 +504,16 @@ export const IsometricFarmWorld: React.FC<IsometricFarmWorldProps> = ({
                     position: 'absolute',
                     left: `${screenX}px`,
                     top: `${screenY}px`,
-                    zIndex: zIndexBase + 3,
-                    pointerEvents: 'none',
+                    zIndex: isHovered ? 99999 : zIndexBase + 3,
+                    pointerEvents: 'auto',
                   }}
                 >
                   <IsometricAnimal
                     tile={tile}
                     isSelected={isSelected}
+                    isMoving={movingTile?.id === tile.id}
                     onClick={handleTileSelect}
+                    onCollectProduce={handleCollectAnimalProduce}
                     isArabic={isArabic}
                   />
                 </div>
@@ -401,6 +533,7 @@ export const IsometricFarmWorld: React.FC<IsometricFarmWorldProps> = ({
                   <IsometricBuilding
                     buildingId={tile.buildingId}
                     isSelected={isSelected}
+                    isMoving={movingTile?.id === tile.id}
                     onClick={(e) => handleTileSelect(tile, e)}
                     isArabic={isArabic}
                   />
@@ -466,69 +599,28 @@ export const IsometricFarmWorld: React.FC<IsometricFarmWorldProps> = ({
       {/* Floating Reward Particle Effects (+Coins, +XP) - Screen Overlay */}
       <FloatingRewardParticles particles={particles} />
 
-      {/* Contextual Action Menu Popup Anchored Above Selected Tile / Mouse Cursor */}
-      {selectedTile && menuScreenPos && (
-        <FloatingActionMenu
-          tile={selectedTile}
-          screenPos={menuScreenPos}
-          inventory={inventory}
-          selectedSeedId={selectedSeedId}
-          onPlant={(id, cropId) => {
-            onPlant(id, cropId);
-            spawnReward(menuScreenPos.x, menuScreenPos.y, isArabic ? '🌱 تم زرع المحصول بنجاح!' : '🌱 Crop Planted Successfully!', '+5 XP', '🌾');
-          }}
-          onWater={(id) => {
-            onWater(id);
-            spawnReward(menuScreenPos.x, menuScreenPos.y, isArabic ? '💧 تم سقاية التربة بالماء!' : '💧 Soil Watered!', undefined, '✨');
-          }}
-          onHarvest={(id) => {
-            onHarvest(id);
-            spawnReward(menuScreenPos.x, menuScreenPos.y, isArabic ? '+25 🪙 ذهب كسب' : '+25 🪙 Coins Earned', '+12 XP', '🌾');
-          }}
-          onFeedAnimal={(id) => {
-            onFeedAnimal(id);
-            spawnReward(menuScreenPos.x, menuScreenPos.y, isArabic ? '🥛 تم جمع الإنتاج!' : '🥛 Produced Collected!', '+35 XP', '✨');
-          }}
-          onPlow={(id) => {
-            onPlow(id);
-            spawnReward(menuScreenPos.x, menuScreenPos.y, isArabic ? '🪙 -10 ذهب | 🌱 تم حراثة التربة' : '-10 🪙 | 🌱 Soil Plowed', '+10 XP', '⛏️');
-          }}
-          onUnlockLand={(id) => {
-            onUnlockLand(id);
-            spawnReward(menuScreenPos.x, menuScreenPos.y, isArabic ? '🪙 -15 ذهب | 🎉 تم توسيع الأرض!' : '-15 🪙 | 🎉 Land Expanded!', '+30 XP', '⭐');
-          }}
-          onSelectSeed={onSelectSeed}
-          onOpenShop={onOpenShop}
-          onStartMove={(t) => {
-            setMovingTile(t);
-            setSelectedTile(null);
-            setMenuScreenPos(null);
-          }}
-          onClose={() => {
-            setSelectedTile(null);
-            setMenuScreenPos(null);
-          }}
-          isArabic={isArabic}
-        />
-      )}
-
-      {/* Rearrange Mode Active Banner */}
+      {/* Rearrange / Move Mode Active Banner */}
       {movingTile && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 border-2 border-[#FDD835] text-white px-5 py-2.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.6)] flex items-center gap-3 backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-200 select-none">
-          <span className="text-2xl animate-bounce">🚜</span>
+          <span className="text-2xl animate-bounce">
+            {movingTile.animalId ? ANIMALS_CONFIG[movingTile.animalId]?.icon || '🐾' : '🏠'}
+          </span>
           <div className="flex flex-col text-right">
             <span className="text-xs font-black text-[#FFE082]">
-              {isArabic ? 'وضع إعادة الترتيب نشط' : 'Rearrange Mode Active'}
+              {isArabic
+                ? `تم إمساك ${movingTile.animalId ? ANIMALS_CONFIG[movingTile.animalId]?.name || 'الحيوان' : 'المبنى'} ✋`
+                : `Moving ${movingTile.animalId ? ANIMALS_CONFIG[movingTile.animalId]?.name || 'Animal' : 'Building'} ✋`}
             </span>
             <span className="text-[11px] font-bold text-white">
               {isArabic
-                ? 'انقر على أي رقعة متاحة لنقل العنصر إليها'
-                : 'Click any available plot to move item there'}
+                ? 'انقر على أي رقعة خالية لوضعه فيها مباشرة'
+                : 'Click any available plot to place it'}
             </span>
           </div>
           <button
             onClick={(e) => {
               e.stopPropagation();
+              soundEngine.playClick();
               setMovingTile(null);
             }}
             className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl cursor-pointer shadow-md transition-transform hover:scale-105 active:scale-95"
