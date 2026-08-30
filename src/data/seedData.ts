@@ -260,8 +260,8 @@ export function generateInitialFarmGrid(studentId: string): FarmTile[] {
           type: 'grass',
           status: 'empty',
           isLocked: true,
-          unlockLevel: 5,
-          unlockCostCoins: 150,
+          unlockLevel: 1,
+          unlockCostCoins: 15,
         });
         continue;
       }
@@ -432,6 +432,48 @@ export function generateInitialFarmGrid(studentId: string): FarmTile[] {
   }
 
   return tiles;
+}
+
+/**
+ * Dynamically ensures that every unlocked tile has a full border of 8 neighbor locked tiles.
+ * Whenever a player unlocks and plows an outer row, a brand new row/border of purchaseable tiles
+ * (at 15 Gold each) is dynamically created around it for infinite farm expansion!
+ */
+export function ensureSurroundingLockedTiles(tiles: FarmTile[], studentId: string): FarmTile[] {
+  const existingMap = new Map<string, FarmTile>();
+  for (const t of tiles) {
+    existingMap.set(`${t.x},${t.y}`, t);
+  }
+
+  const result: FarmTile[] = [...tiles];
+  for (const t of tiles) {
+    if (!t.isLocked) {
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = t.x + dx;
+          const ny = t.y + dy;
+          const key = `${nx},${ny}`;
+          if (!existingMap.has(key)) {
+            const newTile: FarmTile = {
+              id: `${studentId}_t_${nx}_${ny}`,
+              x: nx,
+              y: ny,
+              type: 'grass',
+              status: 'empty',
+              isLocked: true,
+              unlockLevel: 1,
+              unlockCostCoins: 15,
+            };
+            existingMap.set(key, newTile);
+            result.push(newTile);
+          }
+        }
+      }
+    }
+  }
+
+  return result;
 }
 
 export const SEED_HOMEWORKS: Homework[] = [

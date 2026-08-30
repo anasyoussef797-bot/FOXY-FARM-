@@ -14,6 +14,7 @@ import {
   User,
 } from '../types';
 import { ANIMALS_CONFIG, CROPS_CONFIG, getLevelFromXP } from '../data/gameConfigs';
+import { ensureSurroundingLockedTiles } from '../data/seedData';
 import { StorageService } from '../services/storageService';
 import { soundEngine } from '../services/soundEngine';
 
@@ -73,6 +74,7 @@ interface GameContextType {
   plowSoil: (tileId: string) => boolean;
   unlockLandTile: (tileId: string) => boolean;
   placeItemOnTile: (tileId: string, itemType: 'building' | 'decor' | 'animal', itemId: string) => boolean;
+  moveFarmItem: (fromTileId: string, toTileId: string) => boolean;
 
   // Inventory & Market
   buyShopItem: (itemType: 'seed' | 'animal' | 'building' | 'decor', itemId: string, cost: number, quantity?: number) => boolean;
@@ -362,19 +364,50 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Farming actions
   const plowSoil = useCallback(
     (tileId: string): boolean => {
+      const PLOW_COST = 10;
+      const isAr = getIsArabic();
+
+      if (studentProfile.coins < PLOW_COST) {
+        triggerDialog(
+          'ADAM',
+          isAr
+            ? `تحتاج إلى ${PLOW_COST} عملات ذهبية لحراثة هذه الرقعة! أكمل واجباتك المدرسية لكسب الذهب!`
+            : `You need ${PLOW_COST} Gold Coins to plow this soil plot! Complete homework missions to earn coins!`,
+          isAr ? 'الذهب غير كافٍ 🪙' : 'Insufficient Coins 🪙'
+        );
+        return false;
+      }
+
       if (!consumeEnergy(2)) return false;
+
       soundEngine.playPlant();
-      const updatedTiles = farmTiles.map((t) => {
+
+      // Deduct 10 coins and grant 10 XP
+      const newXP = studentProfile.xp + 10;
+      const { level: newLevel } = getLevelFromXP(newXP);
+      const updatedProfile = {
+        ...studentProfile,
+        coins: studentProfile.coins - PLOW_COST,
+        xp: newXP,
+        level: newLevel,
+      };
+      setStudentProfile(updatedProfile);
+      StorageService.updateStudentProfile(updatedProfile);
+
+      const rawTiles = farmTiles.map((t) => {
         if (t.id === tileId) {
           return { ...t, type: 'soil' as const, status: 'empty' as const };
         }
         return t;
       });
+
+      // Keep infinite perimeter updated around all plowed/unlocked tiles
+      const updatedTiles = ensureSurroundingLockedTiles(rawTiles, currentUser.id);
       setFarmTiles(updatedTiles);
       StorageService.saveFarmTiles(currentUser.id, updatedTiles);
       return true;
     },
-    [farmTiles, currentUser.id, consumeEnergy]
+    [farmTiles, studentProfile, currentUser.id, consumeEnergy, triggerDialog]
   );
 
   const plantCrop = useCallback(
@@ -653,34 +686,115 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const tile = farmTiles.find((t) => t.id === tileId);
       if (!tile || !tile.isLocked) return false;
 
+      const UNLOCK_COST = 15;
       const isAr = getIsArabic();
 
-      // Open land expansion anytime without level locks or restrictive barriers!
+      if (studentProfile.coins < UNLOCK_COST) {
+        triggerDialog(
+          'FOXY',
+          isAr
+            ? `تحتاج إلى ${UNLOCK_COST} عملة ذهبية لتوسيع وفتح هذه الرقعة! لديك حالياً ${studentProfile.coins} عملة فقط. أكمل الواجبات لكسب الذهب!`
+            : `You need ${UNLOCK_COST} Coins to unlock and expand this land plot. You currently have ${studentProfile.coins} coins. Complete homework missions to earn more!`,
+          isAr ? 'الذهب غير كافٍ 🪙' : 'Insufficient Coins 🪙'
+        );
+        return false;
+      }
+
       soundEngine.playHarvest();
       triggerCelebration();
 
-      const updatedTiles = farmTiles.map((t) => {
+      // Deduct 15 coins & give 30 XP
+      const newXP = studentProfile.xp + 30;
+      const { level: newLevel } = getLevelFromXP(newXP);
+      const updatedProfile = {
+        ...studentProfile,
+        coins: studentProfile.coins - UNLOCK_COST,
+        xp: newXP,
+        level: newLevel,
+      };
+      setStudentProfile(updatedProfile);
+      StorageService.updateStudentProfile(updatedProfile);
+
+      const rawTiles = farmTiles.map((t) => {
         if (t.id === tileId) {
           return { ...t, isLocked: false, status: 'empty' as const, type: 'grass' as const };
         }
         return t;
       });
+
+      // Dynamically generate the next row/column of surrounding locked tiles around all unlocked tiles!
+      const updatedTiles = ensureSurroundingLockedTiles(rawTiles, currentUser.id);
       setFarmTiles(updatedTiles);
       StorageService.saveFarmTiles(currentUser.id, updatedTiles);
 
-      // Reward student with expansion bonus XP & Gold
-      addCoinsAndXP(20, 30);
-
-      triggerDialog(
-        'FOXY',
-        isAr
-          ? 'مبارك! تم توسيع المزرعة بنجاح! أرضك الآن أوسع وجاهزة لمزيد من المزروعات والمباني والحيوانات!'
-          : 'Expansion successful! Your farm is now larger and ready for more crops and buildings!',
-        isAr ? 'تم توسيع المزرعة! 🎉' : 'New Land Unlocked! 🎉'
-      );
       return true;
     },
-    [farmTiles, currentUser.id, addCoinsAndXP, triggerCelebration, triggerDialog]
+    [farmTiles, studentProfile, currentUser.id, triggerCelebration, triggerDialog]
+  );
+
+  const moveFarmItem = useCallback(
+    (fromTileId: string, toTileId: string): boolean => {
+      const fromTile = farmTiles.find((t) => t.id === fromTileId);
+      const toTile = farmTiles.find((t) => t.id === toTileId);
+      if (!fromTile || !toTile || toTile.isLocked) return false;
+
+      // Check if target tile is occupied by animal or building
+      if (toTile.animalId || toTile.buildingId) {
+        const isAr = getIsArabic();
+        triggerDialog(
+          'FOXY',
+          isAr
+            ? 'هذه الرقعة مشغولة بالفعل بحيوان أو مبنى آخر! اختر رقعة خالية لنقل العنصر إليها.'
+            : 'This plot is already occupied! Please select an empty plot to relocate.',
+          isAr ? 'الرقعة مشغولة ⚠️' : 'Plot Occupied ⚠️'
+        );
+        return false;
+      }
+
+      soundEngine.playHarvest();
+      triggerCelebration();
+
+      const updatedTiles = farmTiles.map((t) => {
+        if (t.id === toTileId) {
+          return {
+            ...t,
+            animalId: fromTile.animalId,
+            animalFedAt: fromTile.animalFedAt,
+            animalHungry: fromTile.animalHungry,
+            buildingId: fromTile.buildingId,
+            decorationId: fromTile.decorationId,
+            cropId: fromTile.cropId,
+            plantedAt: fromTile.plantedAt,
+            wateredAt: fromTile.wateredAt,
+            growthDurationSec: fromTile.growthDurationSec,
+            status: fromTile.status,
+            type: fromTile.cropId ? ('soil' as const) : t.type,
+          };
+        }
+        if (t.id === fromTileId) {
+          return {
+            ...t,
+            animalId: undefined,
+            animalFedAt: undefined,
+            animalHungry: undefined,
+            buildingId: undefined,
+            decorationId: undefined,
+            cropId: undefined,
+            plantedAt: undefined,
+            wateredAt: undefined,
+            growthDurationSec: undefined,
+            status: 'empty' as const,
+            type: 'grass' as const,
+          };
+        }
+        return t;
+      });
+
+      setFarmTiles(updatedTiles);
+      StorageService.saveFarmTiles(currentUser.id, updatedTiles);
+      return true;
+    },
+    [farmTiles, currentUser.id, triggerCelebration, triggerDialog]
   );
 
   const placeItemOnTile = useCallback(
@@ -1114,6 +1228,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         plowSoil,
         unlockLandTile,
         placeItemOnTile,
+        moveFarmItem,
         buyShopItem,
         sellInventoryItem,
         submitHomeworkMission,

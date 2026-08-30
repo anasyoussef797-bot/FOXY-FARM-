@@ -29,6 +29,7 @@ interface FloatingActionMenuProps {
   onUnlockLand: (tileId: string) => void;
   onSelectSeed: (seedId: string) => void;
   onOpenShop: () => void;
+  onStartMove?: (tile: FarmTile) => void;
   onClose: () => void;
 }
 
@@ -45,6 +46,7 @@ export const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({
   onUnlockLand,
   onSelectSeed,
   onOpenShop,
+  onStartMove,
   onClose,
 }) => {
   const { t, isRTL, language } = useTranslation();
@@ -71,46 +73,66 @@ export const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({
     ? ownedSeeds.find((s) => s.referenceId === selectedSeedId) || ownedSeeds[0]
     : ownedSeeds[0];
 
+  // Determine if popup should appear above or below the cursor (if near top of screen)
+  const isNearTop = screenPos.y < 260;
+
   return (
     <div
-      className="absolute z-50 transition-all duration-200 select-none"
+      className="fixed pointer-events-none select-none transition-all duration-150"
       style={{
         left: `${screenPos.x}px`,
-        top: `${screenPos.y - 125}px`,
-        transform: 'translateX(-50%)',
+        top: `${screenPos.y}px`,
+        zIndex: 999999,
       }}
-      onClick={(e) => e.stopPropagation()}
     >
-      {/* Container Card with Warm Farm Wood & Gold Border */}
-      <div className="bg-linear-to-b from-[#2E7D32]/95 via-[#1B5E20]/95 to-[#0A3311]/95 backdrop-blur-md text-white border-2 border-[#FDD835] rounded-3xl p-3 shadow-[0_12px_36px_rgba(0,0,0,0.55)] min-w-[240px] max-w-[300px] flex flex-col items-center gap-2 animate-in fade-in zoom-in-95 duration-150">
-        
-        {/* Header Bar */}
-        <div className="w-full flex items-center justify-between border-b border-white/20 pb-1.5 px-1">
-          <div className="flex items-center gap-1.5 font-black text-xs text-[#FFF9C4]">
-            {isLocked && <span>🌲 {isArabic ? 'أرض جديدة للتوسعة' : 'New Land Plot'}</span>}
-            {isEmptySoil && <span>🌱 {isArabic ? 'أرض محروثة جاهزة' : 'Tilled Plot Ready'}</span>}
-            {isPlanted && <span>🌿 {crop?.name || (isArabic ? 'محصول ينمو' : 'Growing')}</span>}
-            {isReady && <span>🌾 {isArabic ? 'محصول ناضج للحصاد!' : 'Ready to Harvest!'}</span>}
-            {animal && <span>{animal.icon} {animal.name}</span>}
-            {building && <span>{building.icon} {building.name}</span>}
-            {isGrass && <span>🌿 {isArabic ? 'أرض عشبية خضراء' : 'Grass Meadow'}</span>}
-          </div>
+      <div
+        className={`pointer-events-auto relative flex flex-col items-center animate-in fade-in zoom-in-95 duration-150 ${
+          isNearTop ? 'pt-3' : 'pb-3'
+        }`}
+        style={{
+          transform: isNearTop
+            ? 'translate(-50%, 0)'
+            : 'translate(-50%, -100%)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Pointer Arrow pointing to mouse cursor */}
+        {isNearTop ? (
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-[#FDD835] drop-shadow-md" />
+        ) : (
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-[#FDD835] drop-shadow-md" />
+        )}
 
-          <button
-            onClick={onClose}
-            className="w-5 h-5 rounded-full bg-black/40 hover:bg-black/70 flex items-center justify-center text-white/80 hover:text-white cursor-pointer transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {/* Container Card with Warm Farm Wood & Gold Border */}
+        <div className="bg-linear-to-b from-[#1B5E20]/98 via-[#0D3812]/98 to-[#051F0A]/98 backdrop-blur-xl text-white border-2 border-[#FDD835] rounded-3xl p-3 shadow-[0_16px_40px_rgba(0,0,0,0.85)] min-w-[250px] max-w-[320px] flex flex-col items-center gap-2">
+          
+          {/* Header Bar */}
+          <div className="w-full flex items-center justify-between border-b border-white/20 pb-1.5 px-1">
+            <div className="flex items-center gap-1.5 font-black text-xs text-[#FFF9C4]">
+              {isLocked && <span>🌲 {isArabic ? 'أرض جديدة للتوسعة' : 'New Land Plot'}</span>}
+              {isEmptySoil && <span>🌱 {isArabic ? 'أرض محروثة جاهزة' : 'Tilled Plot Ready'}</span>}
+              {isPlanted && <span>🌿 {crop?.name || (isArabic ? 'محصول ينمو' : 'Growing')}</span>}
+              {isReady && <span>🌾 {isArabic ? 'محصول ناضج للحصاد!' : 'Ready to Harvest!'}</span>}
+              {animal && <span>{animal.icon} {animal.name}</span>}
+              {building && <span>{building.icon} {building.name}</span>}
+              {isGrass && <span>🌿 {isArabic ? 'أرض عشبية خضراء' : 'Grass Meadow'}</span>}
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-5 h-5 rounded-full bg-black/50 hover:bg-red-600/80 flex items-center justify-center text-white/90 hover:text-white cursor-pointer transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
         {/* 1. LOCKED WILDERNESS PLOT */}
         {isLocked && (
           <div className="w-full flex flex-col items-center gap-2 py-1 text-center">
             <div className="text-[11px] text-[#E8F5E9] font-bold">
               {isArabic
-                ? 'توسيع المزرعة متاح الآن! انقر لتنظيف هذه الأرض وزراعتها فوراً!'
-                : 'Free land expansion! Click to expand and cultivate this land!'}
+                ? 'توسيع المزرعة متاح الآن! افتح مساحة إضافية لمزيد من المحاصيل والمباني!'
+                : 'Expand your farm! Unlock new plots for more crops and animals!'}
             </div>
             <button
               onClick={() => {
@@ -120,7 +142,7 @@ export const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({
               className="w-full py-2 bg-linear-to-r from-[#76FF03] via-[#64DD17] to-[#00E676] hover:brightness-110 text-slate-950 font-black text-xs rounded-xl border border-white shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-950 stroke-[3]" />
-              <span>{isArabic ? 'توسيع وفتح الأرض الآن ✨' : 'Expand Land Plot ✨'}</span>
+              <span>{isArabic ? 'توسيع وفتح الأرض (15 🪙)' : 'Expand Land Plot (15 🪙)'}</span>
             </button>
           </div>
         )}
@@ -142,7 +164,7 @@ export const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({
               className="w-full py-2 bg-linear-to-r from-[#8D6E63] via-[#A1887F] to-[#5D4037] hover:brightness-110 text-white font-black text-xs rounded-xl border-2 border-[#FFE082] shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"
             >
               <span>⛏️</span>
-              <span>{isArabic ? 'حراثة التربة (2 ⚡)' : 'Plow Soil (2 ⚡)'}</span>
+              <span>{isArabic ? 'حراثة التربة (10 🪙 | 2 ⚡)' : 'Plow Soil (10 🪙 | 2 ⚡)'}</span>
             </button>
           </div>
         )}
@@ -362,7 +384,23 @@ export const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({
           </div>
         )}
 
+        {/* 9. MOVE / REARRANGE BUTTON (FOR ANIMALS, BUILDINGS, CROPS, OR DECORATIONS) */}
+        {!isLocked && (animal || building || tile.decorationId || tile.cropId || isSoil) && onStartMove && (
+          <button
+            onClick={() => {
+              soundEngine.playClick();
+              onStartMove(tile);
+              onClose();
+            }}
+            className="w-full py-2 mt-1 bg-[#263238] hover:bg-[#37474F] text-[#80D8FF] hover:text-white font-black text-xs rounded-xl border border-cyan-400/50 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer transition-transform hover:scale-102 active:scale-95"
+          >
+            <span className="text-sm">🔄</span>
+            <span>{isArabic ? 'نقل وتغيير مكان هذا العنصر' : 'Move / Rearrange Item'}</span>
+          </button>
+        )}
+
       </div>
     </div>
+  </div>
   );
 };

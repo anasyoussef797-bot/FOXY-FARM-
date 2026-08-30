@@ -25,6 +25,7 @@ import {
   SEED_SUBMISSIONS,
   SEED_USERS,
   generateInitialFarmGrid,
+  ensureSurroundingLockedTiles,
 } from '../data/seedData';
 
 const STORAGE_KEYS = {
@@ -148,6 +149,14 @@ export class StorageService {
         }
       }
     });
+
+    // Normalize tile unlock costs and ensure surrounding expansion perimeter exists
+    tiles = tiles.map((t) => (t.isLocked ? { ...t, unlockCostCoins: 15, unlockLevel: 1 } : t));
+    const expandedTiles = ensureSurroundingLockedTiles(tiles, studentId);
+    if (expandedTiles.length !== tiles.length) {
+      tiles = expandedTiles;
+      changed = true;
+    }
 
     if (changed) {
       this.saveFarmTiles(studentId, tiles);
