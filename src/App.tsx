@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
-import { FarmCanvas3D } from './components/FarmCanvas3D';
-import { FarmGrid } from './components/FarmGrid';
+import { IsometricFarmBoard } from './components/IsometricFarmBoard';
+import { StorageModal } from './components/StorageModal';
 import { MissionsView } from './components/MissionsView';
-import { AnimalsView } from './components/AnimalsView';
 import { MarketView } from './components/MarketView';
-import { ModelExplorer3D } from './components/ModelExplorer3D';
 import { AchievementsView } from './components/AchievementsView';
+import { ModelExplorer3D } from './components/ModelExplorer3D';
 import { AIMentorModal } from './components/AIMentorModal';
 import { CharactersModal } from './components/CharactersModal';
 import {
@@ -16,57 +15,48 @@ import {
   HOMEWORK_MISSIONS,
   MARKET_UPGRADES,
   INITIAL_ACHIEVEMENTS,
+  INITIAL_USER_STATS,
 } from './data/initialData';
-import { FarmPlot, CropType, UserStats, Animal, HomeworkMission, MarketUpgrade, Achievement } from './types';
-import { Sparkles, Sprout, Sun, Droplets, BookOpen, Heart, Trophy, AlertCircle, RefreshCw } from 'lucide-react';
+import { FarmPlot, CropType, UserStats, Animal, HomeworkMission, MarketUpgrade, Achievement, GameTool } from './types';
 import confetti from 'canvas-confetti';
+import {
+  playHarvestSound,
+  playWaterSound,
+  playPlantSound,
+  playCoinSound,
+  playLevelUpSound,
+  playPopSound,
+} from './utils/audio';
 
-const STORAGE_KEY_PREFIX = 'foxy_farm_v1_';
+const STORAGE_KEY_PREFIX = 'foxy_farm_v2_';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'farm' | 'missions' | 'animals' | 'market' | '3d-lab' | 'achievements'>('farm');
-  const [view3DMode, setView3DMode] = useState<'split' | '3d-only' | 'grid-only'>('split');
-  const [isAIMentorOpen, setIsAIMentorOpen] = useState(false);
-  const [aiMentorTopic, setAIMentorTopic] = useState('');
-  const [isCharactersOpen, setIsCharactersOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [viewMode, setViewMode] = useState<'farm' | '3d-lab'>('farm');
+  const [activeTool, setActiveTool] = useState<GameTool>('select');
+  const [selectedSeed, setSelectedSeed] = useState<CropType>('corn');
 
-  // User Core State
+  // Modals state
+  const [isStorageOpen, setIsStorageOpen] = useState<boolean>(false);
+  const [isMissionsOpen, setIsMissionsOpen] = useState<boolean>(false);
+  const [isMarketOpen, setIsMarketOpen] = useState<boolean>(false);
+  const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
+  const [isAIMentorOpen, setIsAIMentorOpen] = useState<boolean>(false);
+  const [aiMentorTopic, setAIMentorTopic] = useState<string>('');
+  const [isCharactersOpen, setIsCharactersOpen] = useState<boolean>(false);
+
+  // User Stats State
   const [userStats, setUserStats] = useState<UserStats>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'stats');
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch {
-        // fallback
-      }
+      } catch {}
     }
-    return {
-      coins: 120,
-      xp: 0,
-      level: 1,
-      waterDroplets: 15,
-      solarEnergy: 20,
-      organicFertilizer: 4,
-      seedsInventory: {
-        carrot: 5,
-        wheat: 3,
-        melon: 2,
-        pumpkin: 1,
-        strawberry: 2,
-        tomato: 2,
-        flax: 1,
-      },
-      harvestInventory: {
-        carrot: 2,
-        wheat: 1,
-      },
-      completedMissionsCount: 0,
-      harvestedCropsCount: 0,
-      studyStreakDays: 3,
-    };
+    return INITIAL_USER_STATS;
   });
 
+  // Plots State
   const [plots, setPlots] = useState<FarmPlot[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'plots');
     if (saved) {
@@ -77,6 +67,7 @@ export default function App() {
     return INITIAL_PLOTS;
   });
 
+  // Animals State
   const [animals, setAnimals] = useState<Animal[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'animals');
     if (saved) {
@@ -87,6 +78,7 @@ export default function App() {
     return INITIAL_ANIMALS;
   });
 
+  // Missions State
   const [missions, setMissions] = useState<HomeworkMission[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'missions');
     if (saved) {
@@ -97,6 +89,7 @@ export default function App() {
     return HOMEWORK_MISSIONS;
   });
 
+  // Upgrades State
   const [upgrades, setUpgrades] = useState<MarketUpgrade[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'upgrades');
     if (saved) {
@@ -107,6 +100,7 @@ export default function App() {
     return MARKET_UPGRADES;
   });
 
+  // Achievements State
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'achievements');
     if (saved) {
@@ -117,7 +111,7 @@ export default function App() {
     return INITIAL_ACHIEVEMENTS;
   });
 
-  // Save to localStorage
+  // Persist State to LocalStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_PREFIX + 'stats', JSON.stringify(userStats));
   }, [userStats]);
@@ -142,14 +136,11 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY_PREFIX + 'achievements', JSON.stringify(achievements));
   }, [achievements]);
 
-  // Show quick toast
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  // Gameloop: Crop Growth & Passive Tech Generation
+  // Gameloop: Crop Growth & Animal Production Timers
   useEffect(() => {
+    const dripUpgradeLvl = upgrades.find((u) => u.id === 'solar-drip')?.level || 0;
+    const compostUpgradeLvl = upgrades.find((u) => u.id === 'compost-accelerator')?.level || 0;
+
     const interval = setInterval(() => {
       // 1. Crop Growth
       setPlots((prevPlots) =>
@@ -159,8 +150,8 @@ export default function App() {
           }
 
           const cropDef = CROPS_DATA[plot.crop];
-          // Growth speed multiplier: watered = 1.0, dry = 0.2, fertilized = +0.5
-          const speedMultiplier = (plot.isWatered ? 1.0 : 0.2) * (plot.isFertilized ? 1.5 : 1.0);
+          // Growth speed multiplier: watered = 1.0, dry = 0.2, upgrades boost
+          const speedMultiplier = (plot.isWatered ? 1.0 : 0.2) * (1 + dripUpgradeLvl * 0.25);
           const increment = (100 / cropDef.growthTimeSeconds) * speedMultiplier;
           const newProgress = Math.min(100, plot.growthProgress + increment);
           const isReady = newProgress >= 100;
@@ -173,17 +164,16 @@ export default function App() {
         })
       );
 
-      // 2. Animal product generation
+      // 2. Animal production
       setAnimals((prevAnimals) =>
         prevAnimals.map((animal) => {
-          if (animal.isProductReady || animal.hunger < 20) return animal;
+          if (animal.isProductReady) return animal;
           const now = Date.now();
           const elapsed = (now - animal.lastProducedAt) / 1000;
           if (elapsed >= animal.productionTimeSeconds) {
             return {
               ...animal,
               isProductReady: true,
-              hunger: Math.max(0, animal.hunger - 15),
             };
           }
           return animal;
@@ -194,33 +184,55 @@ export default function App() {
     return () => clearInterval(interval);
   }, [upgrades]);
 
-  // Passive Solar Pump & Drip Generation timer
+  // Passive Solar Pumping Generator
   useEffect(() => {
-    const solarPumpLvl = upgrades.find((u) => u.id === 'solar-pumps')?.level || 0;
+    const solarPumpLvl = upgrades.find((u) => u.id === 'solar-panels')?.level || 0;
+    if (solarPumpLvl <= 0) return;
+
     const interval = setInterval(() => {
       setUserStats((prev) => ({
         ...prev,
-        solarEnergy: prev.solarEnergy + 1,
-        waterDroplets: prev.waterDroplets + (solarPumpLvl > 0 ? solarPumpLvl : 0),
+        waterDroplets: prev.waterDroplets + solarPumpLvl * 2,
+        solarEnergy: Math.min(100, prev.solarEnergy + 5),
       }));
-    }, 15000);
+    }, 12000);
 
     return () => clearInterval(interval);
   }, [upgrades]);
 
-  // Actions
-  const handlePlant = (plotId: number, crop: CropType) => {
-    if ((userStats.seedsInventory[crop] || 0) <= 0) {
-      showToast(`⚠️ No ${CROPS_DATA[crop].name} seeds in inventory! Complete missions or buy in market.`);
-      return;
+  // Check Level Up
+  const addXpAndCheckLevel = (currentStats: UserStats, xpEarned: number): UserStats => {
+    const newXp = currentStats.xp + xpEarned;
+    const newLevel = Math.floor(newXp / 100) + 1;
+
+    if (newLevel > currentStats.level) {
+      playLevelUpSound();
+      confetti({
+        particleCount: 70,
+        spread: 80,
+        origin: { y: 0.5 },
+        colors: ['#eab308', '#22c55e', '#38bdf8', '#ec4899'],
+      });
     }
+
+    return {
+      ...currentStats,
+      xp: newXp,
+      level: newLevel,
+    };
+  };
+
+  // Handlers
+  const handlePlant = (plotId: number, crop: CropType) => {
+    const seedCount = userStats.seedsInventory[crop] || 0;
+    if (seedCount <= 0) return;
 
     // Deduct seed
     setUserStats((prev) => ({
       ...prev,
       seedsInventory: {
         ...prev.seedsInventory,
-        [crop]: Math.max(0, prev.seedsInventory[crop] - 1),
+        [crop]: seedCount - 1,
       },
     }));
 
@@ -232,70 +244,61 @@ export default function App() {
               crop,
               plantedAt: Date.now(),
               growthProgress: 0,
-              isWatered: true, // initial planting watering
+              isWatered: false,
               isFertilized: false,
               isReadyToHarvest: false,
             }
           : p
       )
     );
-
-    showToast(`🌱 Planted ${CROPS_DATA[crop].name} in Plot #${plotId}!`);
   };
 
   const handleWater = (plotId: number) => {
-    if (userStats.waterDroplets < 1) {
-      showToast('⚠️ Out of water droplets! Solve science homework missions to earn water.');
-      return;
-    }
+    if (userStats.waterDroplets <= 0) return;
 
     setUserStats((prev) => ({
       ...prev,
-      waterDroplets: Math.max(0, prev.waterDroplets - 1),
+      waterDroplets: prev.waterDroplets - 1,
     }));
 
     setPlots((prev) =>
       prev.map((p) => (p.id === plotId ? { ...p, isWatered: true } : p))
     );
-    showToast(`💧 Soil Plot #${plotId} hydrated!`);
   };
 
   const handleFertilize = (plotId: number) => {
-    if (userStats.organicFertilizer < 1) {
-      showToast('⚠️ No bio-compost fertilizer! Care for farm animals to collect compost.');
-      return;
-    }
+    if (userStats.organicFertilizer <= 0) return;
 
     setUserStats((prev) => ({
       ...prev,
-      organicFertilizer: Math.max(0, prev.organicFertilizer - 1),
+      organicFertilizer: prev.organicFertilizer - 1,
     }));
 
     setPlots((prev) =>
       prev.map((p) => (p.id === plotId ? { ...p, isFertilized: true } : p))
     );
-    showToast(`✨ Organic bio-compost added to Plot #${plotId}! (+50% Speed)`);
   };
 
   const handleHarvest = (plotId: number) => {
-    const targetPlot = plots.find((p) => p.id === plotId);
-    if (!targetPlot || !targetPlot.crop || !targetPlot.isReadyToHarvest) return;
+    const plot = plots.find((p) => p.id === plotId);
+    if (!plot || !plot.crop || !plot.isReadyToHarvest) return;
 
-    const cropDef = CROPS_DATA[targetPlot.crop];
-    const newHarvestCount = userStats.harvestedCropsCount + 1;
-    const newXp = userStats.xp + cropDef.xpReward;
-    const newLevel = Math.floor(newXp / 100) + 1;
+    const cropDef = CROPS_DATA[plot.crop];
+    const cropName = lang === 'ar' ? cropDef.nameAr : cropDef.name;
 
-    setUserStats((prev) => ({
-      ...prev,
-      xp: newXp,
-      level: newLevel,
-      harvestedCropsCount: newHarvestCount,
-      harvestInventory: {
-        ...prev.harvestInventory,
-        [targetPlot.crop!]: (prev.harvestInventory[targetPlot.crop!] || 0) + 1,
-      },
-    }));
+    // Add to Silo Harvest Inventory
+    setUserStats((prev) => {
+      const currentCount = prev.harvestInventory[cropName] || 0;
+      const updatedStats = {
+        ...prev,
+        harvestInventory: {
+          ...prev.harvestInventory,
+          [cropName]: currentCount + 1,
+        },
+        harvestedCropsCount: prev.harvestedCropsCount + 1,
+      };
+      return addXpAndCheckLevel(updatedStats, cropDef.xpReward);
+    });
 
     // Reset plot
     setPlots((prev) =>
@@ -314,96 +317,77 @@ export default function App() {
       )
     );
 
-    // Achievements check
+    // Update Achievement progress
     setAchievements((prev) =>
       prev.map((ach) => {
         if (ach.id === 'first-harvest') {
-          return { ...ach, unlocked: true, progress: 1 };
+          return { ...ach, progress: 1, unlocked: true };
         }
         if (ach.id === 'crop-master') {
-          const prog = Math.min(ach.maxProgress, newHarvestCount);
-          return { ...ach, progress: prog, unlocked: prog >= ach.maxProgress };
+          const nextProg = Math.min(ach.maxProgress, ach.progress + 1);
+          return { ...ach, progress: nextProg, unlocked: nextProg >= ach.maxProgress };
         }
         return ach;
       })
     );
+  };
 
-    showToast(`🌾 Harvested 1x ${cropDef.name}! (+${cropDef.xpReward} XP)`);
+  const handleHarvestAll = () => {
+    const readyPlots = plots.filter((p) => p.unlocked && p.isReadyToHarvest && p.crop);
+    readyPlots.forEach((p) => handleHarvest(p.id));
+  };
+
+  const handleWaterAll = () => {
+    const unwateredPlots = plots.filter((p) => p.unlocked && p.crop && !p.isWatered);
+    if (unwateredPlots.length === 0 || userStats.waterDroplets <= 0) return;
+
+    const waterToUse = Math.min(userStats.waterDroplets, unwateredPlots.length);
+    setUserStats((prev) => ({
+      ...prev,
+      waterDroplets: prev.waterDroplets - waterToUse,
+    }));
+
+    setPlots((prev) =>
+      prev.map((p) => {
+        if (p.unlocked && p.crop && !p.isWatered) {
+          return { ...p, isWatered: true };
+        }
+        return p;
+      })
+    );
   };
 
   const handleUnlockPlot = (plotId: number) => {
-    const targetPlot = plots.find((p) => p.id === plotId);
-    if (!targetPlot || userStats.coins < targetPlot.unlockCost) return;
+    const plot = plots.find((p) => p.id === plotId);
+    if (!plot || plot.unlocked || userStats.coins < plot.unlockCost) return;
 
     setUserStats((prev) => ({
       ...prev,
-      coins: prev.coins - targetPlot.unlockCost,
+      coins: prev.coins - plot.unlockCost,
     }));
 
     setPlots((prev) =>
       prev.map((p) => (p.id === plotId ? { ...p, unlocked: true } : p))
     );
-
-    confetti({
-      particleCount: 30,
-      spread: 50,
-      origin: { y: 0.6 },
-    });
-
-    showToast(`🎉 Soil Plot #${plotId} is now unlocked for cultivation!`);
-  };
-
-  const handleFeedAnimal = (animalId: string) => {
-    const animal = animals.find((a) => a.id === animalId);
-    if (!animal) return;
-
-    const favFood = animal.favoriteFood;
-    if ((userStats.harvestInventory[favFood] || 0) <= 0) {
-      showToast(`⚠️ You need ${CROPS_DATA[favFood].name} to feed ${animal.name}!`);
-      return;
-    }
-
-    setUserStats((prev) => ({
-      ...prev,
-      harvestInventory: {
-        ...prev.harvestInventory,
-        [favFood]: prev.harvestInventory[favFood] - 1,
-      },
-      organicFertilizer: prev.organicFertilizer + 1,
-    }));
-
-    setAnimals((prev) =>
-      prev.map((a) =>
-        a.id === animalId
-          ? {
-              ...a,
-              hunger: 100,
-              happiness: Math.min(100, a.happiness + 15),
-              lastFedAt: Date.now(),
-            }
-          : a
-      )
-    );
-
-    showToast(`🥣 Fed ${animal.name}! Collected +1 Bio-Compost Fertilizer ✨`);
   };
 
   const handleCollectAnimalProduct = (animalId: string) => {
     const animal = animals.find((a) => a.id === animalId);
     if (!animal || !animal.isProductReady) return;
 
-    const coinReward = 35;
-    const xpReward = 20;
+    const prodName = lang === 'ar' ? animal.productNameAr : animal.productName;
 
-    setUserStats((prev) => ({
-      ...prev,
-      coins: prev.coins + coinReward,
-      xp: prev.xp + xpReward,
-      harvestInventory: {
-        ...prev.harvestInventory,
-        [animal.productName]: (prev.harvestInventory[animal.productName] || 0) + 1,
-      },
-    }));
+    setUserStats((prev) => {
+      const currentCount = prev.harvestInventory[prodName] || 0;
+      const updated = {
+        ...prev,
+        harvestInventory: {
+          ...prev.harvestInventory,
+          [prodName]: currentCount + 1,
+        },
+      };
+      return addXpAndCheckLevel(updated, 25);
+    });
 
     setAnimals((prev) =>
       prev.map((a) =>
@@ -417,309 +401,265 @@ export default function App() {
       )
     );
 
-    // Achievements
+    // Update Animal Whisperer Achievement
     setAchievements((prev) =>
       prev.map((ach) => {
         if (ach.id === 'animal-whisperer') {
-          const prog = Math.min(ach.maxProgress, ach.progress + 1);
-          return { ...ach, progress: prog, unlocked: prog >= ach.maxProgress };
+          const nextProg = Math.min(ach.maxProgress, ach.progress + 1);
+          return { ...ach, progress: nextProg, unlocked: nextProg >= ach.maxProgress };
         }
         return ach;
       })
     );
-
-    showToast(`🧺 Collected ${animal.productEmoji} ${animal.productName}! (+${coinReward} 🪙)`);
-  };
-
-  const handleSellCrop = (cropKey: string, quantity: number) => {
-    const inStock = userStats.harvestInventory[cropKey] || 0;
-    if (inStock < quantity || quantity <= 0) return;
-
-    const cropDef = (CROPS_DATA as any)[cropKey];
-    const unitPrice = cropDef ? cropDef.sellPrice : 30;
-    const totalEarnings = unitPrice * quantity;
-
-    setUserStats((prev) => ({
-      ...prev,
-      coins: prev.coins + totalEarnings,
-      harvestInventory: {
-        ...prev.harvestInventory,
-        [cropKey]: inStock - quantity,
-      },
-    }));
-
-    showToast(`💰 Sold ${quantity}x ${cropDef?.name || cropKey} for +${totalEarnings} 🪙!`);
-  };
-
-  const handleBuySeed = (cropKey: CropType, quantity: number) => {
-    const crop = CROPS_DATA[cropKey];
-    const totalCost = crop.seedCost * quantity;
-
-    if (userStats.coins < totalCost) {
-      showToast('⚠️ Not enough gold coins in your farm vault!');
-      return;
-    }
-
-    setUserStats((prev) => ({
-      ...prev,
-      coins: prev.coins - totalCost,
-      seedsInventory: {
-        ...prev.seedsInventory,
-        [cropKey]: (prev.seedsInventory[cropKey] || 0) + quantity,
-      },
-    }));
-
-    showToast(`📦 Purchased ${quantity}x ${crop.name} seeds!`);
-  };
-
-  const handleBuyUpgrade = (upgradeId: string) => {
-    const upg = upgrades.find((u) => u.id === upgradeId);
-    if (!upg || userStats.coins < upg.cost || upg.level >= upg.maxLevel) return;
-
-    setUserStats((prev) => ({
-      ...prev,
-      coins: prev.coins - upg.cost,
-    }));
-
-    const newLevel = upg.level + 1;
-    setUpgrades((prev) =>
-      prev.map((u) =>
-        u.id === upgradeId
-          ? {
-              ...u,
-              level: newLevel,
-              cost: Math.round(u.cost * 1.5),
-            }
-          : u
-      )
-    );
-
-    // Achievements
-    setAchievements((prev) =>
-      prev.map((ach) => {
-        if (ach.id === 'green-innovator') {
-          const prog = Math.min(ach.maxProgress, ach.progress + 1);
-          return { ...ach, progress: prog, unlocked: prog >= ach.maxProgress };
-        }
-        return ach;
-      })
-    );
-
-    confetti({
-      particleCount: 40,
-      spread: 60,
-      origin: { y: 0.6 },
-    });
-
-    showToast(`⚡ Installed Tier ${newLevel} ${upg.name}!`);
   };
 
   const handleCompleteMission = (missionId: string) => {
     const mission = missions.find((m) => m.id === missionId);
     if (!mission || mission.isCompleted) return;
 
-    const newCompletedCount = userStats.completedMissionsCount + 1;
+    // Grant rewards
+    setUserStats((prev) => {
+      const cropKey = mission.rewardSeeds.crop;
+      const seedCount = prev.seedsInventory[cropKey] || 0;
 
-    setUserStats((prev) => ({
-      ...prev,
-      coins: prev.coins + mission.rewardCoins,
-      xp: prev.xp + mission.rewardXp,
-      waterDroplets: prev.waterDroplets + mission.rewardWater,
-      completedMissionsCount: newCompletedCount,
-      seedsInventory: {
-        ...prev.seedsInventory,
-        [mission.rewardSeeds.crop]: (prev.seedsInventory[mission.rewardSeeds.crop] || 0) + mission.rewardSeeds.count,
-      },
-    }));
+      const updated = {
+        ...prev,
+        coins: prev.coins + mission.rewardCoins,
+        dinars: prev.dinars + (mission.rewardDinars || 5),
+        waterDroplets: prev.waterDroplets + mission.rewardWater,
+        completedMissionsCount: prev.completedMissionsCount + 1,
+        seedsInventory: {
+          ...prev.seedsInventory,
+          [cropKey]: seedCount + mission.rewardSeeds.count,
+        },
+      };
+      return addXpAndCheckLevel(updated, mission.rewardXp);
+    });
 
     setMissions((prev) =>
       prev.map((m) => (m.id === missionId ? { ...m, isCompleted: true } : m))
     );
 
-    // Achievements
+    // Update Homework Hero Achievement
     setAchievements((prev) =>
       prev.map((ach) => {
         if (ach.id === 'homework-hero') {
-          const prog = Math.min(ach.maxProgress, newCompletedCount);
-          return { ...ach, progress: prog, unlocked: prog >= ach.maxProgress };
+          const nextProg = Math.min(ach.maxProgress, ach.progress + 1);
+          return { ...ach, progress: nextProg, unlocked: nextProg >= ach.maxProgress };
         }
         return ach;
       })
     );
+  };
 
-    showToast(`🎓 Homework Mission Solved! +${mission.rewardCoins} 🪙, +${mission.rewardWater} 💧, +${mission.rewardSeeds.count} Seeds!`);
+  const handleBuyUpgrade = (upgradeId: string) => {
+    const upgrade = upgrades.find((u) => u.id === upgradeId);
+    if (!upgrade || userStats.coins < upgrade.cost || upgrade.level >= upgrade.maxLevel) return;
+
+    setUserStats((prev) => ({
+      ...prev,
+      coins: prev.coins - upgrade.cost,
+    }));
+
+    setUpgrades((prev) =>
+      prev.map((u) =>
+        u.id === upgradeId
+          ? {
+              ...u,
+              level: u.level + 1,
+              cost: Math.round(u.cost * 1.5),
+            }
+          : u
+      )
+    );
+  };
+
+  const handleBuySeed = (cropKey: CropType, quantity: number) => {
+    const crop = CROPS_DATA[cropKey];
+    const totalCost = crop.seedCost * quantity;
+    if (userStats.coins < totalCost) return;
+
+    setUserStats((prev) => {
+      const current = prev.seedsInventory[cropKey] || 0;
+      return {
+        ...prev,
+        coins: prev.coins - totalCost,
+        seedsInventory: {
+          ...prev.seedsInventory,
+          [cropKey]: current + quantity,
+        },
+      };
+    });
+  };
+
+  const handleSellStorageItem = (itemName: string, count: number, pricePerUnit: number) => {
+    const currentCount = userStats.harvestInventory[itemName] || 0;
+    if (currentCount <= 0) return;
+
+    const countToSell = Math.min(currentCount, count);
+    const earnedCoins = countToSell * pricePerUnit;
+
+    setUserStats((prev) => ({
+      ...prev,
+      coins: prev.coins + earnedCoins,
+      harvestInventory: {
+        ...prev.harvestInventory,
+        [itemName]: currentCount - countToSell,
+      },
+    }));
+  };
+
+  const handleSellAllStorage = () => {
+    let totalCoinsEarned = 0;
+    const newInventory = { ...userStats.harvestInventory };
+
+    Object.entries(newInventory).forEach(([name, count]) => {
+      if (count > 0) {
+        // Find price
+        let price = 25;
+        for (const k of Object.keys(CROPS_DATA)) {
+          const c = CROPS_DATA[k as CropType];
+          if (c.name === name || c.nameAr === name) {
+            price = c.sellPrice;
+            break;
+          }
+        }
+        totalCoinsEarned += price * count;
+        newInventory[name] = 0;
+      }
+    });
+
+    setUserStats((prev) => ({
+      ...prev,
+      coins: prev.coins + totalCoinsEarned,
+      harvestInventory: newInventory,
+    }));
   };
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950">
-      {/* Top Navbar */}
+    <div className="min-h-screen bg-[#10220a] text-slate-100 flex flex-col font-sans selection:bg-amber-400 selection:text-slate-950">
+      {/* Top HUD Game Header (Matching 1.png) */}
       <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         userStats={userStats}
+        onUpdateStats={setUserStats}
+        lang={lang}
+        setLang={setLang}
+        onOpenCharacters={() => setIsCharactersOpen(true)}
         onOpenAIMentor={() => {
           setAIMentorTopic('');
           setIsAIMentorOpen(true);
         }}
-        onOpenCharacters={() => setIsCharactersOpen(true)}
+        onOpenMissions={() => setIsMissionsOpen(true)}
+        onOpenMarket={() => setIsMarketOpen(true)}
+        onOpenStorage={() => setIsStorageOpen(true)}
+        onOpenAchievements={() => setIsAchievementsOpen(true)}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
       />
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 right-4 z-50 bg-slate-900/95 border border-amber-500/80 text-amber-200 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-semibold animate-in fade-in slide-in-from-top-4 duration-200">
-          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Main Tab Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
-        {activeTab === 'farm' && (
-          <div className="space-y-6">
-            {/* View Mode Toggle */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2 font-display">
-                  <Sprout className="w-5 h-5 text-emerald-400" />
-                  Cultivation Plots & Field View
-                </h2>
-              </div>
-
-              <div className="bg-slate-900 p-1 rounded-xl border border-slate-800 flex items-center gap-1 text-xs font-semibold">
-                <button
-                  onClick={() => setView3DMode('split')}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
-                    view3DMode === 'split' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  3D + Grid View
-                </button>
-                <button
-                  onClick={() => setView3DMode('3d-only')}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
-                    view3DMode === '3d-only' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  3D View Only
-                </button>
-                <button
-                  onClick={() => setView3DMode('grid-only')}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
-                    view3DMode === 'grid-only' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Fast Grid
-                </button>
-              </div>
-            </div>
-
-            {/* 3D Farm View */}
-            {(view3DMode === 'split' || view3DMode === '3d-only') && (
-              <FarmCanvas3D
-                plots={plots}
-                onPlotClick={(plot) => {
-                  if (plot.isReadyToHarvest) {
-                    handleHarvest(plot.id);
-                  } else if (!plot.isWatered && plot.crop) {
-                    handleWater(plot.id);
-                  }
-                }}
-                onHarvest={handleHarvest}
-                onWater={handleWater}
-              />
-            )}
-
-            {/* Farm Interactive Grid */}
-            {(view3DMode === 'split' || view3DMode === 'grid-only') && (
-              <FarmGrid
-                plots={plots}
-                userStats={userStats}
-                onPlant={handlePlant}
-                onWater={handleWater}
-                onFertilize={handleFertilize}
-                onHarvest={handleHarvest}
-                onUnlockPlot={handleUnlockPlot}
-              />
-            )}
-          </div>
-        )}
-
-        {activeTab === 'missions' && (
-          <MissionsView
-            missions={missions}
-            userStats={userStats}
-            onCompleteMission={handleCompleteMission}
-            onOpenAIMentor={(topic) => {
-              setAIMentorTopic(topic || '');
-              setIsAIMentorOpen(true);
-            }}
-          />
-        )}
-
-        {activeTab === 'animals' && (
-          <AnimalsView
+      {/* Main View Area */}
+      <main className="flex-1 flex flex-col relative overflow-hidden">
+        {viewMode === 'farm' ? (
+          <IsometricFarmBoard
+            plots={plots}
             animals={animals}
             userStats={userStats}
-            onFeedAnimal={handleFeedAnimal}
-            onCollectProduct={handleCollectAnimalProduct}
+            selectedSeed={selectedSeed}
+            setSelectedSeed={setSelectedSeed}
+            activeTool={activeTool}
+            setActiveTool={setActiveTool}
+            onPlant={handlePlant}
+            onWater={handleWater}
+            onFertilize={handleFertilize}
+            onHarvest={handleHarvest}
+            onHarvestAll={handleHarvestAll}
+            onWaterAll={handleWaterAll}
+            onUnlockPlot={handleUnlockPlot}
+            onCollectAnimalProduct={handleCollectAnimalProduct}
+            onOpenMissions={() => setIsMissionsOpen(true)}
+            onOpenMarket={() => setIsMarketOpen(true)}
+            onOpenStorage={() => setIsStorageOpen(true)}
+            onOpenAchievements={() => setIsAchievementsOpen(true)}
+            onOpenAIMentor={() => {
+              setAIMentorTopic('');
+              setIsAIMentorOpen(true);
+            }}
+            onOpenCharacters={() => setIsCharactersOpen(true)}
+            lang={lang}
           />
-        )}
-
-        {activeTab === 'market' && (
-          <MarketView
-            upgrades={upgrades}
-            userStats={userStats}
-            onBuyUpgrade={handleBuyUpgrade}
-            onSellCrop={handleSellCrop}
-            onBuySeed={handleBuySeed}
-          />
-        )}
-
-        {activeTab === '3d-lab' && <ModelExplorer3D />}
-
-        {activeTab === 'achievements' && (
-          <AchievementsView achievements={achievements} userStats={userStats} />
+        ) : (
+          <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full flex-1">
+            <ModelExplorer3D />
+          </div>
         )}
       </main>
 
-      {/* AI Farm Mentor / Tutor Modal */}
+      {/* Silo & Storage Inventory Modal */}
+      <StorageModal
+        isOpen={isStorageOpen}
+        onClose={() => setIsStorageOpen(false)}
+        userStats={userStats}
+        onSellItem={handleSellStorageItem}
+        onSellAll={handleSellAllStorage}
+        lang={lang}
+      />
+
+      {/* Homework Missions Modal */}
+      {isMissionsOpen && (
+        <MissionsView
+          missions={missions}
+          userStats={userStats}
+          onCompleteMission={handleCompleteMission}
+          onOpenAIMentor={(topic) => {
+            setAIMentorTopic(topic || '');
+            setIsMissionsOpen(false);
+            setIsAIMentorOpen(true);
+          }}
+          lang={lang}
+          isModal={true}
+          onClose={() => setIsMissionsOpen(false)}
+        />
+      )}
+
+      {/* Market & Upgrades Modal */}
+      {isMarketOpen && (
+        <MarketView
+          upgrades={upgrades}
+          userStats={userStats}
+          onBuyUpgrade={handleBuyUpgrade}
+          onSellCrop={() => {}}
+          onBuySeed={handleBuySeed}
+          lang={lang}
+          isModal={true}
+          onClose={() => setIsMarketOpen(false)}
+        />
+      )}
+
+      {/* Achievements Modal */}
+      {isAchievementsOpen && (
+        <AchievementsView
+          achievements={achievements}
+          userStats={userStats}
+          lang={lang}
+          isModal={true}
+          onClose={() => setIsAchievementsOpen(false)}
+        />
+      )}
+
+      {/* Spark AI Mentor Modal */}
       <AIMentorModal
         isOpen={isAIMentorOpen}
         onClose={() => setIsAIMentorOpen(false)}
         initialTopic={aiMentorTopic}
-        onRewardBonus={(coins, water) => {
-          setUserStats((prev) => ({
-            ...prev,
-            coins: prev.coins + coins,
-            waterDroplets: prev.waterDroplets + water,
-          }));
-          showToast(`💡 Learning Bonus: +${coins} 🪙 and +${water} 💧!`);
-        }}
+        lang={lang}
       />
 
-      {/* Characters Showcase Modal */}
+      {/* Characters Squad Modal */}
       <CharactersModal
         isOpen={isCharactersOpen}
         onClose={() => setIsCharactersOpen(false)}
-        onSelectTutor={(characterName) => {
-          setAIMentorTopic(`Hello ${characterName}!`);
-          setIsAIMentorOpen(true);
-        }}
+        lang={lang}
       />
-
-      {/* Footer */}
-      <footer className="border-t border-slate-900 py-6 px-4 text-center text-xs text-slate-500 bg-slate-950/80">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span>🦊 FOXY FARM</span>
-            <span>•</span>
-            <span>Impact Hub Egypt Youth Agriculture & STEM Initiative</span>
-          </div>
-          <div className="text-[11px] text-slate-500">
-            Powered by Google AI Studio & Three.js 3D Engine
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

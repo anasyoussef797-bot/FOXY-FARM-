@@ -12,8 +12,10 @@ import {
   Sun,
   Sprout,
   Check,
+  X,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { playCoinSound, playPopSound } from '../utils/audio';
 
 interface MarketViewProps {
   upgrades: MarketUpgrade[];
@@ -21,6 +23,9 @@ interface MarketViewProps {
   onBuyUpgrade: (upgradeId: string) => void;
   onSellCrop: (cropKey: string, quantity: number) => void;
   onBuySeed: (cropKey: CropType, quantity: number) => void;
+  lang: 'ar' | 'en';
+  isModal?: boolean;
+  onClose?: () => void;
 }
 
 export const MarketView: React.FC<MarketViewProps> = ({
@@ -29,207 +34,169 @@ export const MarketView: React.FC<MarketViewProps> = ({
   onBuyUpgrade,
   onSellCrop,
   onBuySeed,
+  lang,
+  isModal = false,
+  onClose,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'sell' | 'seeds' | 'upgrades'>('sell');
+  const isAr = lang === 'ar';
+  const [activeSubTab, setActiveSubTab] = useState<'seeds' | 'upgrades' | 'dinars'>('seeds');
 
-  const handleSellAll = (cropKey: string, quantity: number) => {
-    if (quantity <= 0) return;
+  const handleBuySeed = (cropKey: CropType, cost: number) => {
+    if (userStats.coins < cost) {
+      playPopSound();
+      return;
+    }
+    playCoinSound();
     confetti({
-      particleCount: 30,
-      spread: 50,
+      particleCount: 25,
+      spread: 45,
       origin: { y: 0.7 },
-      colors: ['#eab308', '#22c55e', '#3b82f6'],
+      colors: ['#22c55e', '#eab308'],
     });
-    onSellCrop(cropKey, quantity);
+    onBuySeed(cropKey, 1);
   };
 
-  return (
-    <div id="market-trading-hub" className="space-y-6">
+  const handleBuyUpgrade = (upgrade: MarketUpgrade) => {
+    if (userStats.coins < upgrade.cost || upgrade.level >= upgrade.maxLevel) {
+      playPopSound();
+      return;
+    }
+    playCoinSound();
+    confetti({
+      particleCount: 40,
+      spread: 60,
+      origin: { y: 0.6 },
+      colors: ['#38bdf8', '#fbbf24', '#34d399'],
+    });
+    onBuyUpgrade(upgrade.id);
+  };
+
+  const content = (
+    <div id="market-trading-hub" className="space-y-5 text-slate-100" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Market Header */}
-      <div className="bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-900 border border-amber-900/60 p-5 sm:p-6 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-amber-950/90 via-emerald-950/80 to-slate-900 border-2 border-emerald-500/40 p-4 sm:p-5 rounded-3xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
+            <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
               <ShoppingBag className="w-3.5 h-3.5" />
-              Impact Hub Farmer’s Bazaar
+              {isAr ? 'بازار المزارع الذكي • Impact Hub Egypt' : 'Smart Farmer Bazaar • Impact Hub Egypt'}
             </span>
           </div>
-          <h2 className="text-2xl font-bold text-white mt-1.5">Organic Market & Green Tech</h2>
-          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl mt-1">
-            Trade your fresh organic harvests for gold coins and invest in eco-friendly agricultural technology.
+          <h2 className="text-xl font-extrabold text-white mt-1">
+            {isAr ? 'المتجر والتقنيات الزراعية الخضراء' : 'Organic Market & Green Tech'}
+          </h2>
+          <p className="text-xs text-emerald-200/80 max-w-xl">
+            {isAr
+              ? 'اشترِ بذور المحاصيل العالية الإنتاج، واستثمر في مضخات الطاقة الشمسية وشبكات الري بالتنقيط الحديثة!'
+              : 'Purchase high-yield seeds and invest in eco-friendly solar pumps & precision drip irrigation!'}
           </p>
         </div>
 
-        <div className="bg-slate-900/90 border border-amber-500/40 p-4 rounded-xl flex items-center gap-3 shadow-lg">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl">
-            🪙
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-900/90 border-2 border-amber-400/80 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
+            <Coins className="w-5 h-5 text-amber-400" />
+            <div>
+              <div className="text-[10px] text-slate-400 font-medium">
+                {isAr ? 'رصيد الذهب' : 'Coin Vault'}
+              </div>
+              <div className="text-sm font-black text-amber-300">{userStats.coins} 🪙</div>
+            </div>
           </div>
-          <div>
-            <div className="text-xs text-slate-400">Student Farm Vault</div>
-            <div className="text-lg font-extrabold text-amber-400">{userStats.coins} Coins</div>
+
+          <div className="bg-slate-900/90 border-2 border-emerald-400/80 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
+            <span className="text-lg">💵</span>
+            <div>
+              <div className="text-[10px] text-slate-400 font-medium">
+                {isAr ? 'الدنانير' : 'Dinars'}
+              </div>
+              <div className="text-sm font-black text-emerald-300">{userStats.dinars}</div>
+            </div>
           </div>
+
+          {isModal && onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
         <button
-          id="tab-market-sell"
-          onClick={() => setActiveSubTab('sell')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-            activeSubTab === 'sell'
-              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
-              : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
-          }`}
-        >
-          Sell Harvest Produce
-        </button>
-        <button
-          id="tab-market-seeds"
-          onClick={() => setActiveSubTab('seeds')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+          onClick={() => {
+            playPopSound();
+            setActiveSubTab('seeds');
+          }}
+          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all border ${
             activeSubTab === 'seeds'
-              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
-              : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+              ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20'
+              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
           }`}
         >
-          Buy Seeds
+          {isAr ? 'بذور المحاصيل 🌱' : 'Buy Seeds 🌱'}
         </button>
+
         <button
-          id="tab-market-upgrades"
-          onClick={() => setActiveSubTab('upgrades')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+          onClick={() => {
+            playPopSound();
+            setActiveSubTab('upgrades');
+          }}
+          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all border ${
             activeSubTab === 'upgrades'
               ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
-              : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
           }`}
         >
-          Green Tech & Solar Upgrades
+          {isAr ? 'ترقيات المزرعة والطاقة الشمسية ⚡' : 'Farm & Solar Tech ⚡'}
         </button>
       </div>
 
-      {/* View 1: Sell Harvest Produce */}
-      {activeSubTab === 'sell' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(Object.keys(CROPS_DATA) as CropType[]).map((cropKey) => {
-            const crop = CROPS_DATA[cropKey];
-            const inStock = userStats.harvestInventory[cropKey] || 0;
-            const totalValue = inStock * crop.sellPrice;
-
-            return (
-              <div
-                key={cropKey}
-                id={`sell-item-${cropKey}`}
-                className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl">
-                      {crop.iconEmoji}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white">{crop.name}</h3>
-                      <p className="text-xs text-amber-400 font-semibold">{crop.sellPrice} 🪙 per unit</p>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-bold ${
-                      inStock > 0
-                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
-                        : 'bg-slate-800 text-slate-500'
-                    }`}
-                  >
-                    {inStock} in Silo
-                  </span>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-                  <div className="text-xs text-slate-400">
-                    Est. Value: <strong className="text-white">{totalValue} 🪙</strong>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      id={`btn-sell-one-${cropKey}`}
-                      onClick={() => handleSellAll(cropKey, 1)}
-                      disabled={inStock < 1}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed border border-slate-700 transition-colors"
-                    >
-                      Sell 1
-                    </button>
-                    <button
-                      id={`btn-sell-all-${cropKey}`}
-                      onClick={() => handleSellAll(cropKey, inStock)}
-                      disabled={inStock < 1}
-                      className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-amber-500/20 transition-all active:scale-95"
-                    >
-                      Sell All
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* View 2: Buy Seeds */}
+      {/* Tab 1: Seeds Store */}
       {activeSubTab === 'seeds' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {(Object.keys(CROPS_DATA) as CropType[]).map((cropKey) => {
             const crop = CROPS_DATA[cropKey];
             const currentOwned = userStats.seedsInventory[cropKey] || 0;
+            const canAfford = userStats.coins >= crop.seedCost;
 
             return (
               <div
                 key={cropKey}
-                id={`buy-seed-${cropKey}`}
-                className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between"
+                className="p-4 rounded-3xl bg-slate-900/80 border-2 border-slate-800 hover:border-emerald-500/50 flex flex-col justify-between transition-all group"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl">
-                      {crop.iconEmoji}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white">{crop.name} Seed</h3>
-                      <p className="text-xs text-amber-400 font-semibold">{crop.seedCost} 🪙 per seed</p>
-                    </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-3xl">{crop.iconEmoji}</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-bold border border-slate-700">
+                      {isAr ? `لديك: ×${currentOwned}` : `Owned: ×${currentOwned}`}
+                    </span>
                   </div>
 
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 font-semibold">
-                    Owned: {currentOwned}
-                  </span>
+                  <h3 className="font-extrabold text-sm text-white">{isAr ? crop.nameAr : crop.name}</h3>
+                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{isAr ? crop.factAr : crop.fact}</p>
                 </div>
 
-                <p className="text-xs text-slate-400 my-3 line-clamp-2">
-                  {crop.fact}
-                </p>
-
-                <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-                  <span className="text-xs text-slate-400">
-                    Growth: <strong className="text-emerald-400">{crop.growthTimeSeconds}s</strong>
-                  </span>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      id={`btn-buy-seed-1-${cropKey}`}
-                      onClick={() => onBuySeed(cropKey, 1)}
-                      disabled={userStats.coins < crop.seedCost}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    >
-                      Buy 1
-                    </button>
-                    <button
-                      id={`btn-buy-seed-5-${cropKey}`}
-                      onClick={() => onBuySeed(cropKey, 5)}
-                      disabled={userStats.coins < crop.seedCost * 5}
-                      className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed shadow-md transition-all active:scale-95"
-                    >
-                      Buy 5 ({crop.seedCost * 5} 🪙)
-                    </button>
+                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+                  <div className="text-xs font-black text-amber-300 flex items-center gap-1">
+                    <Coins className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{crop.seedCost} 🪙</span>
                   </div>
+
+                  <button
+                    onClick={() => handleBuySeed(cropKey, crop.seedCost)}
+                    disabled={!canAfford}
+                    className={`px-3 py-1.5 rounded-xl font-black text-xs transition-all active:scale-95 ${
+                      canAfford
+                        ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    }`}
+                  >
+                    {isAr ? 'شراء +1' : 'Buy 1'}
+                  </button>
                 </div>
               </div>
             );
@@ -237,75 +204,57 @@ export const MarketView: React.FC<MarketViewProps> = ({
         </div>
       )}
 
-      {/* View 3: Green Tech & Solar Upgrades */}
+      {/* Tab 2: Farm & Solar Upgrades */}
       {activeSubTab === 'upgrades' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {upgrades.map((upgrade) => {
-            const isMaxed = upgrade.level >= upgrade.maxLevel;
-            const canAfford = userStats.coins >= upgrade.cost;
+            const isMax = upgrade.level >= upgrade.maxLevel;
+            const canAfford = userStats.coins >= upgrade.cost && !isMax;
 
             return (
               <div
                 key={upgrade.id}
-                id={`upgrade-card-${upgrade.id}`}
-                className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl hover:border-slate-700 transition-all flex flex-col justify-between"
+                className="p-4 rounded-3xl bg-slate-900/80 border-2 border-slate-800 hover:border-amber-500/40 flex flex-col justify-between transition-all"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-950/60 border border-indigo-700/60 flex items-center justify-center text-indigo-400">
-                        {upgrade.category === 'Irrigation' ? (
-                          <Droplets className="w-6 h-6 text-cyan-400" />
-                        ) : upgrade.category === 'Green Tech' ? (
-                          <Sun className="w-6 h-6 text-amber-400" />
-                        ) : upgrade.category === 'Soil Science' ? (
-                          <Sparkles className="w-6 h-6 text-emerald-400" />
-                        ) : (
-                          <Warehouse className="w-6 h-6 text-purple-400" />
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-400">
-                          {upgrade.category}
-                        </span>
-                        <h3 className="text-base font-bold text-white">{upgrade.name}</h3>
-                      </div>
-                    </div>
-
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 font-bold border border-slate-700">
-                      Tier {upgrade.level}/{upgrade.maxLevel}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-3xl">
+                      {upgrade.icon === 'Droplets' && '💧'}
+                      {upgrade.icon === 'Sun' && '☀️'}
+                      {upgrade.icon === 'Sparkles' && '✨'}
+                    </span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-black border border-amber-500/30">
+                      {isAr ? `المستوى ${upgrade.level}/${upgrade.maxLevel}` : `Level ${upgrade.level}/${upgrade.maxLevel}`}
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-300 my-3 leading-relaxed">
-                    {upgrade.description}
-                  </p>
+                  <h3 className="font-black text-sm text-white">{isAr ? upgrade.nameAr : upgrade.name}</h3>
+                  <p className="text-xs text-slate-400 mt-1">{isAr ? upgrade.descriptionAr : upgrade.description}</p>
 
-                  <div className="bg-emerald-950/40 border border-emerald-800/60 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-300 flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-emerald-400" />
-                    {upgrade.bonusText}
+                  <div className="mt-3 p-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{isAr ? upgrade.bonusTextAr : upgrade.bonusText}</span>
                   </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
-                  <span className="text-xs text-slate-400">
-                    Upgrade Cost: <strong className="text-amber-400 font-bold">{upgrade.cost} 🪙</strong>
-                  </span>
+                  <div className="text-xs font-black text-amber-300 flex items-center gap-1">
+                    <Coins className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isMax ? (isAr ? 'الحد الأقصى' : 'Maxed') : `${upgrade.cost} 🪙`}</span>
+                  </div>
 
                   <button
-                    id={`btn-upgrade-${upgrade.id}`}
-                    onClick={() => onBuyUpgrade(upgrade.id)}
-                    disabled={isMaxed || !canAfford}
-                    className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md ${
-                      isMaxed
-                        ? 'bg-slate-800 text-slate-500 cursor-default'
+                    onClick={() => handleBuyUpgrade(upgrade)}
+                    disabled={!canAfford}
+                    className={`px-3.5 py-1.5 rounded-xl font-black text-xs transition-all active:scale-95 ${
+                      isMax
+                        ? 'bg-slate-800 text-emerald-400 border border-slate-700 cursor-default'
                         : canAfford
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-amber-500/20 active:scale-95'
+                        ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
                         : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                     }`}
                   >
-                    <ArrowUpCircle className="w-4 h-4" />
-                    {isMaxed ? 'Max Level Reached' : `Install Upgrade (${upgrade.cost} 🪙)`}
+                    {isMax ? (isAr ? 'مكتمل ✓' : 'Maxed ✓') : isAr ? 'ترقية الآن ⬆️' : 'Upgrade ⬆️'}
                   </button>
                 </div>
               </div>
@@ -315,4 +264,16 @@ export const MarketView: React.FC<MarketViewProps> = ({
       )}
     </div>
   );
+
+  if (isModal) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+        <div className="bg-slate-950 border-2 border-emerald-500/40 rounded-3xl w-full max-w-4xl p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+          {content}
+        </div>
+      </div>
+    );
+  }
+
+  return content;
 };

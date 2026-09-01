@@ -2,76 +2,89 @@ import React, { useState } from 'react';
 import { CHARACTERS_DATA } from '../data/initialData';
 import { CharacterProfile } from '../types';
 import { Sparkles, X, Users, BookOpen, Layers, Award } from 'lucide-react';
+import { playPopSound } from '../utils/audio';
 
 interface CharactersModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectTutor?: (characterName: string) => void;
+  lang: 'ar' | 'en';
 }
 
 export const CharactersModal: React.FC<CharactersModalProps> = ({
   isOpen,
   onClose,
   onSelectTutor,
+  lang,
 }) => {
+  const isAr = lang === 'ar';
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterProfile>(CHARACTERS_DATA[0]);
   const [viewMode, setViewMode] = useState<'profile' | 'poses' | 'group'>('profile');
 
   if (!isOpen) return null;
 
   return (
-    <div id="characters-modal-overlay" className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+    <div
+      id="characters-modal-overlay"
+      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn"
+      dir={isAr ? 'rtl' : 'ltr'}
+    >
+      <div className="bg-slate-900 border-2 border-amber-500/50 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-slate-100">
         {/* Header */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-amber-950/40 to-slate-900 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-              <Users className="w-5 h-5" />
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-2xl shadow-inner">
+              🦊
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                Foxy Farm Character Squad
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-800 font-semibold">
+              <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                {isAr ? 'فريق أبطال مزرعة فوكسي' : 'Foxy Farm Character Squad'}
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-800 font-bold">
                   Impact Hub Egypt
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Meet your educational mentors, botanists, engineers, and AI companions.
+                {isAr
+                  ? 'تعرف على مرشدي الزراعة الذكية، علماء التربة، مهندسي الطاقة الشمسية، والمساعد الذكي!'
+                  : 'Meet your educational mentors, botanists, engineers, and AI companions.'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="bg-slate-800/80 p-1 rounded-xl border border-slate-700 hidden sm:flex items-center gap-1 text-xs font-semibold">
+            <div className="bg-slate-800/80 p-1 rounded-xl border border-slate-700 hidden sm:flex items-center gap-1 text-xs font-bold">
               <button
                 onClick={() => setViewMode('profile')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
+                className={`px-3 py-1 rounded-lg transition-all ${
                   viewMode === 'profile' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Profiles
+                {isAr ? 'الملفات الشخصية' : 'Profiles'}
               </button>
               <button
                 onClick={() => setViewMode('poses')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
+                className={`px-3 py-1 rounded-lg transition-all ${
                   viewMode === 'poses' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Pose Sheets
+                {isAr ? 'رسومات الأوضاع' : 'Pose Sheets'}
               </button>
               <button
                 onClick={() => setViewMode('group')}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
+                className={`px-3 py-1 rounded-lg transition-all ${
                   viewMode === 'group' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Farm Poster
+                {isAr ? 'صورة الفريق' : 'Farm Poster'}
               </button>
             </div>
 
             <button
-              onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              onClick={() => {
+                playPopSound();
+                onClose();
+              }}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -82,86 +95,101 @@ export const CharactersModal: React.FC<CharactersModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {viewMode === 'group' ? (
             <div className="space-y-4 text-center">
-              <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 max-h-[500px] flex items-center justify-center">
+              <div className="rounded-3xl overflow-hidden border-2 border-slate-800 shadow-2xl bg-slate-950 max-h-[500px] flex items-center justify-center p-2">
                 <img
                   src="/images/foxy_farm_characters_group_1787682518054.jpg"
                   alt="Foxy Farm Characters Group"
-                  className="w-full h-auto max-h-[480px] object-contain rounded-xl"
+                  className="w-full h-auto max-h-[460px] object-contain rounded-2xl"
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <p className="text-xs text-slate-300">
-                🌱 Together for a greener Egypt: Foxy, Talia, Adam, and Spark empowering students through agricultural STEM!
+              <p className="text-xs text-amber-200 font-medium">
+                {isAr
+                  ? '🌱 معاً من أجل مصر خضراء ومستدامة: فوكسي، تاليا، آدم، وسبارك لتمكين الطلاب عبر التعليم الزراعي التفاعلي!'
+                  : '🌱 Together for a greener Egypt: Foxy, Talia, Adam, and Spark empowering students through agricultural STEM!'}
               </p>
             </div>
           ) : viewMode === 'poses' ? (
             <div className="space-y-4">
-              {/* Pose Character Selector */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                {CHARACTERS_DATA.map((c) => (
+                {CHARACTERS_DATA.map((char) => (
                   <button
-                    key={c.id}
-                    onClick={() => setSelectedCharacter(c)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all ${
-                      selectedCharacter.id === c.id
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
-                        : 'bg-slate-800 text-slate-300 border-slate-700'
+                    key={char.id}
+                    onClick={() => {
+                      playPopSound();
+                      setSelectedCharacter(char);
+                    }}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all border ${
+                      selectedCharacter.id === char.id
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md'
+                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                     }`}
                   >
-                    <span>{c.name}</span>
+                    {isAr ? char.nameAr : char.name}
                   </button>
                 ))}
               </div>
 
-              <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex flex-col items-center justify-center p-3">
+              <div className="rounded-3xl overflow-hidden border-2 border-slate-800 bg-slate-950 p-2 shadow-2xl">
                 <img
                   src={selectedCharacter.sheetUrl}
-                  alt={`${selectedCharacter.name} Posheet`}
-                  className="w-full max-h-[450px] object-contain rounded-xl"
+                  alt={`${selectedCharacter.name} Sheet`}
+                  className="w-full h-auto max-h-[460px] object-contain rounded-2xl"
                   referrerPolicy="no-referrer"
                 />
-                <div className="mt-3 text-xs text-slate-400">
-                  Pose Sheet & Expressions for <strong>{selectedCharacter.name}</strong> ({selectedCharacter.role})
-                </div>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-              {/* Character Selector List */}
-              <div className="md:col-span-4 space-y-3">
-                {CHARACTERS_DATA.map((c) => {
-                  const isSelected = selectedCharacter.id === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedCharacter(c)}
-                      className={`w-full p-3 rounded-2xl border text-left flex items-center gap-3 transition-all ${
-                        isSelected
-                          ? 'bg-amber-500/20 border-amber-500/60 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/40'
-                          : 'bg-slate-850 bg-slate-900/60 border-slate-800 hover:bg-slate-800'
-                      }`}
-                    >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-700 shrink-0 bg-slate-800">
-                        <img
-                          src={c.avatarUrl}
-                          alt={c.name}
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
+              {/* Character Selector Thumbnails (5 cols) */}
+              <div className="md:col-span-5 space-y-3">
+                <h4 className="text-xs font-black text-amber-300 uppercase tracking-wider">
+                  {isAr ? 'أعضاء الفريق الزراعي' : 'Select Squad Member'}
+                </h4>
+                <div className="space-y-2.5">
+                  {CHARACTERS_DATA.map((char) => {
+                    const isSelected = selectedCharacter.id === char.id;
+                    return (
+                      <div
+                        key={char.id}
+                        onClick={() => {
+                          playPopSound();
+                          setSelectedCharacter(char);
+                        }}
+                        className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
+                          isSelected
+                            ? 'bg-amber-500/20 border-amber-400 shadow-lg shadow-amber-500/10'
+                            : 'bg-slate-800/60 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600'
+                        }`}
+                      >
+                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-600 shrink-0 bg-slate-950">
+                          <img
+                            src={char.avatarUrl}
+                            alt={char.name}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-sm text-white truncate">
+                              {isAr ? char.nameAr : char.name}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-amber-300 block truncate">
+                            {isAr ? char.roleAr : char.role}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-sm font-bold text-white">{c.name}</div>
-                        <div className="text-xs text-amber-400/90 font-medium line-clamp-1">{c.role}</div>
-                      </div>
-                    </button>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Character Detail Card */}
-              <div className="md:col-span-8 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-                <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-xl shrink-0 bg-slate-800">
+              {/* Character Feature Card (7 cols) */}
+              <div className="md:col-span-7 bg-slate-950/80 border-2 border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-xl">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-amber-400 shrink-0 shadow-lg bg-slate-900">
                     <img
                       src={selectedCharacter.avatarUrl}
                       alt={selectedCharacter.name}
@@ -169,40 +197,30 @@ export const CharactersModal: React.FC<CharactersModalProps> = ({
                       referrerPolicy="no-referrer"
                     />
                   </div>
-
-                  <div className="space-y-2 text-center sm:text-left flex-1">
-                    <span className="text-xs uppercase font-bold tracking-wider text-amber-400 bg-amber-950/60 px-2.5 py-1 rounded-md border border-amber-800/60">
-                      {selectedCharacter.role}
-                    </span>
-                    <h4 className="text-2xl font-bold text-white">{selectedCharacter.name}</h4>
-                    <p className="text-xs font-semibold text-emerald-400">
-                      Specialty: {selectedCharacter.specialty}
-                    </p>
-                    <p className="text-xs text-slate-300 leading-relaxed pt-1">
-                      {selectedCharacter.bio}
-                    </p>
+                  <div>
+                    <h3 className="text-xl font-extrabold text-white">
+                      {isAr ? selectedCharacter.nameAr : selectedCharacter.name}
+                    </h3>
+                    <div className="text-xs font-bold text-amber-300 mt-0.5">
+                      {isAr ? selectedCharacter.roleAr : selectedCharacter.role}
+                    </div>
+                    <div className="text-[11px] text-emerald-400 font-semibold mt-0.5">
+                      {isAr ? selectedCharacter.specialtyAr : selectedCharacter.specialty}
+                    </div>
                   </div>
                 </div>
 
-                {/* Character Greeting Quote */}
-                <div className="bg-slate-950/70 border border-slate-800 p-4 rounded-xl text-xs sm:text-sm text-amber-200 italic flex items-start gap-2.5">
-                  <span className="text-lg">💬</span>
-                  <p>"{selectedCharacter.greeting}"</p>
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-400/30 text-amber-200 text-xs italic">
+                  "{isAr ? selectedCharacter.greetingAr : selectedCharacter.greeting}"
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-3">
-                  {onSelectTutor && (
-                    <button
-                      onClick={() => {
-                        onClose();
-                        onSelectTutor(selectedCharacter.name);
-                      }}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      Chat with {selectedCharacter.name}
-                    </button>
-                  )}
+                <div className="space-y-2">
+                  <h5 className="text-xs font-bold text-slate-300">
+                    {isAr ? 'نبذة عن المرشد:' : 'Biography & Educational Background:'}
+                  </h5>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {isAr ? selectedCharacter.bioAr : selectedCharacter.bio}
+                  </p>
                 </div>
               </div>
             </div>
